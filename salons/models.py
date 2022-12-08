@@ -12,7 +12,7 @@ class Salon(models.Model):
     longitude = models.DecimalField("долгота", max_digits=6, decimal_places=3)
 
     def __str__(self):
-        return f'Салон {self.name}, {self.address}, {self.city}'
+        return f'Салон {self.name}'
 
 
 class Provider(models.Model):
@@ -46,8 +46,9 @@ class ProviderSchedule(models.Model):
     from_hour = models.TimeField("начало работы")
     to_hour = models.TimeField("конец работы")
 
+    # TODO better unique constraint - work in multiple salons on the same day
     class Meta:
-        unique_together = ['provider', 'weekday', 'from_hour']
+        unique_together = ['provider', 'weekday']
 
     def __str__(self):
         return f'{self.provider} c {self.from_hour} по {self.to_hour} в {self.get_weekday_display()}'
@@ -74,7 +75,8 @@ class Customer(models.Model):
 
 
 class Appointment(models.Model):
-    date_time = models.DateTimeField("дата и время")
+    date = models.DateField("дата")
+    time = models.TimeField("время")
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE,
                                  verbose_name="клиент")
     provider = models.ForeignKey(Provider, on_delete=models.CASCADE,
@@ -83,10 +85,17 @@ class Appointment(models.Model):
                                 verbose_name="услуга")
 
     class Meta:
-        unique_together = ['provider', 'date_time']
+        unique_together = ['provider', 'date', 'time']
 
-    def get_salon(self):
-        pass
+    @property
+    def salon(self):
+        matching_schedule = ProviderSchedule.objects.get(
+            provider=self.provider,
+            weekday=self.date.weekday(),
+            from_hour__lte=self.time,
+            to_hour__gt=self.time,
+        )
+        return matching_schedule.salon
 
     def __str__(self):
-        return f'Запись {self.customer} к {self.provider} {self.date_time}'
+        return f'Запись {self.customer} к {self.provider} в {self.salon}, {self.date} {self.time}'
