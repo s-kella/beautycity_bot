@@ -81,10 +81,12 @@ class Appointment(models.Model):
                                  verbose_name="мастер")
     service = models.ForeignKey(Service, on_delete=models.CASCADE,
                                 verbose_name="услуга")
-    # TODO add salon based on where the provider works during appointment time
 
     class Meta:
         unique_together = ['provider', 'date_time']
+
+    def get_salon(self):
+        pass
 
     def __str__(self):
         return f'Запись {self.customer} к {self.provider} {self.date_time}'
