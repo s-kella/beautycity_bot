@@ -39,14 +39,20 @@ class ProviderSchedule(models.Model):
         (6, _("Sunday")),
     ]
     provider = models.ForeignKey(Provider, on_delete=models.CASCADE,
-                                 verbose_name="мастер")
+                                 verbose_name="мастер",
+                                 related_name='working_timeslots')
     salon = models.ForeignKey(Salon, on_delete=models.CASCADE,
-                              verbose_name="салон")
+                              verbose_name="салон",
+                              related_name='provider_schedules')
     weekday = models.IntegerField("день недели", choices=WEEKDAYS)
-    from_hour = models.TimeField("начало работы")
-    to_hour = models.TimeField("конец работы")
+    from_hour = models.TimeField("начало работы",
+                                 help_text=_('Only exact hours with 00 minutes are allowed, '
+                                             'e.g. 11:00, 14:00'))
+    to_hour = models.TimeField("конец работы",
+                               help_text=_('Only exact hours with 00 minutes are allowed, '
+                                           'e.g. 11:00, 14:00'))
 
-    # TODO better unique constraint - work in multiple salons on the same day
+    # TODO better unique constraint - work in multiple salons on the same day, have breaks
     class Meta:
         unique_together = ['provider', 'weekday']
 
@@ -78,9 +84,11 @@ class Appointment(models.Model):
     date = models.DateField("дата")
     time = models.TimeField("время")
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE,
-                                 verbose_name="клиент")
+                                 verbose_name="клиент",
+                                 related_name='appointments')
     provider = models.ForeignKey(Provider, on_delete=models.CASCADE,
-                                 verbose_name="мастер")
+                                 verbose_name="мастер",
+                                 related_name='appointments')
     service = models.ForeignKey(Service, on_delete=models.CASCADE,
                                 verbose_name="услуга")
 
