@@ -1,6 +1,8 @@
 import datetime
+import pytz
 
 from django.db import models
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from phonenumber_field.modelfields import PhoneNumberField
@@ -86,9 +88,10 @@ class Provider(models.Model):
                     lambda schedule: schedule['weekday'] == date.weekday(),
                     working_hours)
                 )['hours']
-                todays_appointments = self.appointments.filter(date=date)
+                todays_appointments = self.appointments.filter(datetime__date=date)
+                appt_hours = []
                 if todays_appointments.exists():
-                    appt_hours = list(todays_appointments.values_list('time__hour', flat=True))
+                    appt_hours = list(todays_appointments.values_list('datetime__time__hour', flat=True))
                 available_hours = list(filter(lambda hour: hour not in appt_hours, todays_hours))
                 available_times.append({'weekday': date.weekday(), 'available_hours': available_hours})
         return available_times
@@ -148,8 +151,7 @@ class Customer(models.Model):
 
 
 class Appointment(models.Model):
-    date = models.DateField("дата")
-    time = models.TimeField("время")
+    datetime = models.DateTimeField("дата и время")
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE,
                                  verbose_name="клиент",
                                  related_name='appointments')
@@ -159,18 +161,19 @@ class Appointment(models.Model):
     service = models.ForeignKey(Service, on_delete=models.CASCADE,
                                 verbose_name="услуга")
 
+    # TODO check that a matching provider schedule exists
     class Meta:
-        unique_together = ['provider', 'date', 'time']
+        unique_together = ['provider', 'datetime']
 
     @property
     def salon(self):
         matching_schedule = ProviderSchedule.objects.get(
             provider=self.provider,
-            weekday=self.date.weekday(),
-            time_from__lte=self.time,
-            time_till__gt=self.time,
+            weekday=self.datetime.date().weekday(),
+            time_from__lte=self.datetime.time(),
+            time_till__gt=self.datetime.time(),
         )
         return matching_schedule.salon
 
     def __str__(self):
-        return f'Запись {self.customer} к {self.provider} в {self.salon}, {self.date} {self.time}'
+        return f'Запись {self.customer} в {self.salon} к {self.provider}, {self.datetime}'
