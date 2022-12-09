@@ -6,6 +6,16 @@ from django.utils.translation import gettext_lazy as _
 from phonenumber_field.modelfields import PhoneNumberField
 
 
+class Weekday(models.IntegerChoices):
+    MONDAY = 0, _("Monday")
+    TUESDAY = 1, _("Tuesday")
+    WEDNESDAY = 2, _("Wednesday")
+    THURSDAY = 3, _("Thursday")
+    FRIDAY = 4, _("Friday")
+    SATURDAY = 5, _("Saturday")
+    SUNDAY = 6, _("Sunday")
+
+
 def extract_working_hours(day_schedule: dict):
     return {
         'weekday': day_schedule['weekday'],
@@ -60,22 +70,13 @@ class Provider(models.Model):
 
 
 class ProviderSchedule(models.Model):
-    WEEKDAYS = [
-        (0, _("Monday")),
-        (1, _("Tuesday")),
-        (2, _("Wednesday")),
-        (3, _("Thursday")),
-        (4, _("Friday")),
-        (5, _("Saturday")),
-        (6, _("Sunday")),
-    ]
     provider = models.ForeignKey(Provider, on_delete=models.CASCADE,
                                  verbose_name="мастер",
                                  related_name='working_timeslots')
     salon = models.ForeignKey(Salon, on_delete=models.CASCADE,
                               verbose_name="салон",
                               related_name='provider_schedules')
-    weekday = models.IntegerField("день недели", choices=WEEKDAYS)
+    weekday = models.IntegerField("день недели", choices=Weekday.choices)
     time_from = models.TimeField("начало работы",
                                  help_text=_('Only exact hours with 00 minutes are allowed, '
                                              'e.g. 11:00, 14:00'))
