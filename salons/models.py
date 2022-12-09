@@ -29,6 +29,12 @@ class Salon(models.Model):
     address = models.CharField("адрес", max_length=200)
     latitude = models.DecimalField("широта", max_digits=6, decimal_places=3)
     longitude = models.DecimalField("долгота", max_digits=6, decimal_places=3)
+    time_open = models.TimeField("время открытия",
+                                 help_text=_('Only exact hours with 00 minutes are allowed, '
+                                             'e.g. 11:00, 14:00'))
+    time_close = models.TimeField("время закрытия",
+                                  help_text=_('Only exact hours with 00 minutes are allowed, '
+                                              'e.g. 11:00, 14:00'))
 
     def __str__(self):
         return f'Салон {self.name}'
