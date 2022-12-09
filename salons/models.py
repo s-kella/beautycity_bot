@@ -56,6 +56,8 @@ class Salon(models.Model):
             available_appts.update({provider: provider.get_available_hours(n_days)})
         return available_appts
 
+    # TODO get nearest
+
 
 class Provider(models.Model):
     first_name = models.CharField("имя", max_length=50)
@@ -110,7 +112,7 @@ class ProviderSchedule(models.Model):
         unique_together = ['provider', 'weekday']
 
     def __str__(self):
-        return f'{self.provider} c {self.time_from} по {self.time_till} в {self.get_weekday_display()}'
+        return f'{self.provider} {self.get_weekday_display()} c {self.time_from} по {self.time_till} в {self.salon}'
 
 
 class Service(models.Model):
@@ -120,7 +122,7 @@ class Service(models.Model):
                                          related_name='services', related_query_name='service')
 
     def __str__(self):
-        return f'Услуга {self.name}'
+        return f'{self.name}'
 
     def get_available_appointments_by_salon(self, n_days):
         providers = self.provided_by.prefetch_related('works_at')
@@ -141,6 +143,8 @@ class Customer(models.Model):
 
     def __str__(self):
         return f'{self.first_name} {self.last_name}'
+
+    # TODO get past & future appointments
 
 
 class Appointment(models.Model):

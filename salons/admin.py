@@ -2,16 +2,26 @@ from django.contrib import admin
 from .models import Salon, Provider, ProviderSchedule, Service, Customer, Appointment
 
 
+class AppointmentInline(admin.TabularInline):
+    model = Appointment
+
+
+class ProviderScheduleInline(admin.TabularInline):
+    model = ProviderSchedule
+
+
 @admin.register(Salon)
 class SalonAdmin(admin.ModelAdmin):
-    # TODO display schedule, services?
-    pass
+    inlines = [
+        ProviderScheduleInline
+    ]
 
 
 @admin.register(Provider)
 class ProviderAdmin(admin.ModelAdmin):
-    # TODO display services, schedule
-    pass
+    inlines = [
+        ProviderScheduleInline
+    ]
 
 
 @admin.register(ProviderSchedule)
@@ -21,13 +31,14 @@ class ProviderScheduleAdmin(admin.ModelAdmin):
 
 @admin.register(Service)
 class ServiceAdmin(admin.ModelAdmin):
-    # TODO display providers
     pass
 
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    pass
+    inlines = [
+        AppointmentInline
+    ]
 
 
 @admin.register(Appointment)
