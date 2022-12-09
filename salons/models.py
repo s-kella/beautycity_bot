@@ -1,7 +1,16 @@
+import datetime
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from phonenumber_field.modelfields import PhoneNumberField
+
+
+def extract_working_hours(day_schedule: dict):
+    return {
+        'weekday': day_schedule['weekday'],
+        'hours': list(range(day_schedule['time_from__hour'], day_schedule['time_till__hour']))
+    }
 
 
 class Salon(models.Model):
@@ -27,6 +36,28 @@ class Provider(models.Model):
     def __str__(self):
         return f'Мастер {self.first_name} {self.last_name}'
 
+    def get_available_hours(self, n_days):
+        working_timeslots = self.working_timeslots.all()
+        working_hours = list(map(
+            extract_working_hours,
+            working_timeslots.values('weekday', 'time_from__hour', 'time_till__hour')
+        ))
+        available_times = []
+        for offset in range(n_days):
+            date = datetime.date.today() + datetime.timedelta(days=offset)
+            todays_schedule = working_timeslots.filter(weekday=date.weekday())
+            if todays_schedule.exists():
+                todays_hours = next(filter(
+                    lambda schedule: schedule['weekday'] == date.weekday(),
+                    working_hours)
+                )['hours']
+                todays_appointments = self.appointments.filter(date=date)
+                if todays_appointments.exists():
+                    appt_hours = list(todays_appointments.values_list('time__hour', flat=True))
+                available_hours = list(filter(lambda hour: hour not in appt_hours, todays_hours))
+                available_times.append({'weekday': date.weekday(), 'available_hours': available_hours})
+        return available_times
+
 
 class ProviderSchedule(models.Model):
     WEEKDAYS = [
@@ -45,19 +76,19 @@ class ProviderSchedule(models.Model):
                               verbose_name="салон",
                               related_name='provider_schedules')
     weekday = models.IntegerField("день недели", choices=WEEKDAYS)
-    from_hour = models.TimeField("начало работы",
+    time_from = models.TimeField("начало работы",
                                  help_text=_('Only exact hours with 00 minutes are allowed, '
                                              'e.g. 11:00, 14:00'))
-    to_hour = models.TimeField("конец работы",
-                               help_text=_('Only exact hours with 00 minutes are allowed, '
-                                           'e.g. 11:00, 14:00'))
+    time_till = models.TimeField("конец работы",
+                                 help_text=_('Only exact hours with 00 minutes are allowed, '
+                                             'e.g. 11:00, 14:00'))
 
     # TODO better unique constraint - work in multiple salons on the same day, have breaks
     class Meta:
         unique_together = ['provider', 'weekday']
 
     def __str__(self):
-        return f'{self.provider} c {self.from_hour} по {self.to_hour} в {self.get_weekday_display()}'
+        return f'{self.provider} c {self.time_from} по {self.time_till} в {self.get_weekday_display()}'
 
 
 class Service(models.Model):
@@ -100,8 +131,8 @@ class Appointment(models.Model):
         matching_schedule = ProviderSchedule.objects.get(
             provider=self.provider,
             weekday=self.date.weekday(),
-            from_hour__lte=self.time,
-            to_hour__gt=self.time,
+            time_from__lte=self.time,
+            time_till__gt=self.time,
         )
         return matching_schedule.salon
 
