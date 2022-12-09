@@ -10,6 +10,11 @@
     ```commandline
     python -m venv venv && venv/bin/pip install -U -r requirements.txt
     ```
+#### Paзработчикам
+4. Загрузите тестовые объекты в БД:
+   ```commandline
+   python manage.py migrate && python manage.py loaddata data/test_data.json
+   ```
 
 ## Как пользоваться
 
