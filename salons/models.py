@@ -5,6 +5,8 @@ from django.utils.translation import gettext_lazy as _
 
 from phonenumber_field.modelfields import PhoneNumberField
 
+EXACT_HOURS_TEXT = _('Only exact hours with 00 minutes are allowed, e.g. 11:00, 14:00')
+
 
 class Weekday(models.IntegerChoices):
     MONDAY = 0, _("Monday")
@@ -30,14 +32,29 @@ class Salon(models.Model):
     latitude = models.DecimalField("широта", max_digits=6, decimal_places=3)
     longitude = models.DecimalField("долгота", max_digits=6, decimal_places=3)
     time_open = models.TimeField("время открытия",
-                                 help_text=_('Only exact hours with 00 minutes are allowed, '
-                                             'e.g. 11:00, 14:00'))
+                                 help_text=EXACT_HOURS_TEXT)
     time_close = models.TimeField("время закрытия",
-                                  help_text=_('Only exact hours with 00 minutes are allowed, '
-                                              'e.g. 11:00, 14:00'))
+                                  help_text=EXACT_HOURS_TEXT)
 
     def __str__(self):
         return f'Салон {self.name}'
+
+    def get_available_appointments_by_provider(self, n_days):
+        available_appts = {}
+        available_providers = set()
+        if n_days >= 7:
+            weekdays = Weekday
+        else:
+            weekdays = []
+            for offset in range(n_days):
+                date = datetime.date.today() + datetime.timedelta(days=offset)
+                weekdays.append(date.weekday())
+        provider_schedules = self.provider_schedules.filter(weekday__in=weekdays).prefetch_related('provider')
+        for schedule in provider_schedules:
+            available_providers.add(schedule.provider)
+        for provider in available_providers:
+            available_appts.update({provider: provider.get_available_hours(n_days)})
+        return available_appts
 
 
 class Provider(models.Model):
@@ -50,7 +67,7 @@ class Provider(models.Model):
                                       through='ProviderSchedule')
 
     def __str__(self):
-        return f'Мастер {self.first_name} {self.last_name}'
+        return f'{self.first_name} {self.last_name}'
 
     def get_available_hours(self, n_days):
         working_timeslots = self.working_timeslots.all()
@@ -84,11 +101,9 @@ class ProviderSchedule(models.Model):
                               related_name='provider_schedules')
     weekday = models.IntegerField("день недели", choices=Weekday.choices)
     time_from = models.TimeField("начало работы",
-                                 help_text=_('Only exact hours with 00 minutes are allowed, '
-                                             'e.g. 11:00, 14:00'))
+                                 help_text=EXACT_HOURS_TEXT)
     time_till = models.TimeField("конец работы",
-                                 help_text=_('Only exact hours with 00 minutes are allowed, '
-                                             'e.g. 11:00, 14:00'))
+                                 help_text=EXACT_HOURS_TEXT)
 
     # TODO better unique constraint - work in multiple salons on the same day, have breaks
     class Meta:
@@ -107,6 +122,16 @@ class Service(models.Model):
     def __str__(self):
         return f'Услуга {self.name}'
 
+    def get_available_appointments_by_salon(self, n_days):
+        providers = self.provided_by.prefetch_related('works_at')
+        salons = set()
+        available_appts = {}
+        for provider in providers:
+            salons.update(provider.works_at.all())
+        for salon in salons:
+            available_appts.update({salon: salon.get_available_appointments_by_provider(n_days)})
+        return available_appts
+
 
 class Customer(models.Model):
     telegram_id = models.IntegerField()
@@ -115,7 +140,7 @@ class Customer(models.Model):
     phone_number = PhoneNumberField("телефон")
 
     def __str__(self):
-        return f'Клиент {self.first_name} {self.last_name}'
+        return f'{self.first_name} {self.last_name}'
 
 
 class Appointment(models.Model):
