@@ -3,6 +3,7 @@ import pytz
 
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from phonenumber_field.modelfields import PhoneNumberField
@@ -147,7 +148,11 @@ class Customer(models.Model):
     def __str__(self):
         return f'{self.first_name} {self.last_name}'
 
-    # TODO get past & future appointments
+    def get_past_appointments(self):
+        return Appointment.objects.filter(customer=self, datetime__lt=timezone.now())
+
+    def get_future_appointments(self):
+        return Appointment.objects.filter(customer=self, datetime__gte=timezone.now())
 
 
 class Appointment(models.Model):
