@@ -43,14 +43,22 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 # TODO add pre-filtering by city for larger DBs
 class SalonManager(models.Manager):
-    def with_degree_diff_from_user(self, user_lat, user_lon):
+    def with_degree_diff_from_user(self, user_lat: float, user_lon: float):
         return self.annotate(
             degree_diff_lat=Func(F('latitude') - user_lat, function='ABS', output_field=models.FloatField()),
             degree_diff_lon=Func(F('longitude') - user_lon, function='ABS', output_field=models.FloatField()),
             degree_diff=(F('degree_diff_lat') + F('degree_diff_lon')),
         )
 
-    def nearest(self, user_lat, user_lon, max_dist_km=25, max_results=5) -> list:
+    def nearest(self, user_lat: float, user_lon: float, max_dist_km=25, max_results=5) -> list[tuple]:
+        """
+        Query salons by distance from user.
+        @param user_lat:
+        @param user_lon:
+        @param max_dist_km:
+        @param max_results:
+        @return: list of tuples in the format (salon, distance_in_km)
+        """
         nearish_salons = (self.with_degree_diff_from_user(user_lat, user_lon)
                           .filter(degree_diff__lte=1.5))
         nearest_salons = []
