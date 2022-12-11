@@ -50,7 +50,7 @@ class SalonManager(models.Manager):
             degree_diff=(F('degree_diff_lat') + F('degree_diff_lon')),
         )
 
-    def nearest(self, user_lat: float, user_lon: float, max_dist_km=25, max_results=5) -> list[tuple]:
+    def nearest(self, user_lat: float, user_lon: float, max_dist_km=25, max_results=5) -> dict:
         """
         Query salons by distance from user.
         @return: list of tuples in the format (salon, distance_in_km)
@@ -64,7 +64,8 @@ class SalonManager(models.Manager):
                 nearest_salons.append(
                     (salon, distance)
                 )
-        return sorted(nearest_salons, key=lambda x: x[1])[:max_results]
+        salons_by_distance = sorted(nearest_salons, key=lambda x: x[1])[:max_results]
+        return dict(salons_by_distance)
 
 
 class Salon(models.Model):
