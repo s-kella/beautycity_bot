@@ -1,8 +1,8 @@
 import datetime
-import pytz
+from math import radians, cos, sin, asin, sqrt
 
 from django.db import models
-from django.db.models import Q
+from django.db.models import F, Func
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -28,6 +28,41 @@ def extract_working_hours(day_schedule: dict):
     }
 
 
+def haversine_distance(lat1, lon1, lat2, lon2):
+    earth_radius = 6371
+    # convert decimal degrees to radians
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a))
+    km = earth_radius * c
+    return round(km, 3)
+
+
+# TODO add pre-filtering by city for larger DBs
+class SalonManager(models.Manager):
+    def with_degree_diff_from_user(self, user_lat, user_lon):
+        return self.annotate(
+            degree_diff_lat=Func(F('latitude') - user_lat, function='ABS', output_field=models.FloatField()),
+            degree_diff_lon=Func(F('longitude') - user_lon, function='ABS', output_field=models.FloatField()),
+            degree_diff=(F('degree_diff_lat') + F('degree_diff_lon')),
+        )
+
+    def nearest(self, user_lat, user_lon, max_dist_km=25, max_results=5) -> list:
+        nearish_salons = (self.with_degree_diff_from_user(user_lat, user_lon)
+                          .filter(degree_diff__lte=1.5))
+        nearest_salons = []
+        for salon in nearish_salons:
+            distance = salon.get_distance_from_user(user_lat, user_lon)
+            if distance < max_dist_km:
+                nearest_salons.append(
+                    (salon, distance)
+                )
+        return sorted(nearest_salons, key=lambda x: x[1])[:max_results]
+
+
 class Salon(models.Model):
     name = models.CharField("название",  max_length=200)
     city = models.CharField("город", max_length=50, default="Москва")
@@ -38,6 +73,8 @@ class Salon(models.Model):
                                  help_text=EXACT_HOURS_TEXT)
     time_close = models.TimeField("время закрытия",
                                   help_text=EXACT_HOURS_TEXT)
+
+    objects = SalonManager()
 
     def __str__(self):
         return f'Салон {self.name}'
@@ -59,7 +96,8 @@ class Salon(models.Model):
             available_appts.update({provider: provider.get_available_hours(n_days)})
         return available_appts
 
-    # TODO get nearest
+    def get_distance_from_user(self, user_lat, user_lon):
+        return haversine_distance(self.latitude, self.longitude, user_lat, user_lon)
 
 
 class Provider(models.Model):
