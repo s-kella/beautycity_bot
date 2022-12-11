@@ -53,10 +53,6 @@ class SalonManager(models.Manager):
     def nearest(self, user_lat: float, user_lon: float, max_dist_km=25, max_results=5) -> list[tuple]:
         """
         Query salons by distance from user.
-        @param user_lat:
-        @param user_lon:
-        @param max_dist_km:
-        @param max_results:
         @return: list of tuples in the format (salon, distance_in_km)
         """
         nearish_salons = (self.with_degree_diff_from_user(user_lat, user_lon)
