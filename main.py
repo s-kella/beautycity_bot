@@ -47,13 +47,6 @@ def start(update, context):
     # registration(update, context)
 
 
-# def menu(update, context):
-#     buttons = ['Личный кабинет', 'Записаться']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Главное меню:",
-#         reply_markup=reply_markup,
-#     )
 def main_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     if query:
@@ -77,25 +70,18 @@ def main_menu(update: Update, context: CallbackContext):
         query.message.delete()
 
 
-# def lk(update, context):
-#     buttons = ['Мои записи', 'Прошлые записи', 'Назад']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Личный кабинет:",
-#         reply_markup=reply_markup,
-#     )
 def account_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
     message_text = bot_strings.account_menu
     keyboard = [
-        # [
-        #     InlineKeyboardButton(bot_strings.favorite_recipes_button, callback_data='favorite_recipes'),
-        # ],
-        # [
-        #     InlineKeyboardButton(bot_strings.excluded_recipes_button, callback_data='excluded_recipes'),
-        # ],
+        [
+            InlineKeyboardButton(bot_strings.my_appointments, callback_data='my_ap'),
+        ],
+        [
+            InlineKeyboardButton(bot_strings.past_appointments, callback_data='past_ap'),
+        ],
         [
             InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
         ],
@@ -106,27 +92,46 @@ def account_menu(update: Update, context: CallbackContext):
 
 
 def my_appointments(update, context):
-    update.message.reply_text(
-        text="Мои записи:",
-    )
+    query = update.callback_query
+    query.answer()
+    message_text = bot_strings.my_appointments
+    keyboard = [
+        [
+            InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
-def past_appointments(update, context):
-    buttons = ['Запись 1', 'Запись 2', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Прошлые записи:",
-        reply_markup=reply_markup,
-    )
+def past_appointments(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+
+    try:
+        appointments = [{'id': 1,
+                         'name': 'Запись 1'},
+                        {'id': 2,
+                         'name': 'Запись 2'}]
+    except django.db.Error:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    message_text = bot_strings.past_appointments
+    keyboard = [
+        [
+            InlineKeyboardButton(app['name'], callback_data=f'app{app["id"]}'),
+        ] for app in appointments
+    ]
+    keyboard.append([
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+    ])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
-# def new_appointment(update, context):
-#     buttons = ['По салону', 'По  услуге', 'По мастеру', 'Назад']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Новая запись",
-#         reply_markup=reply_markup,
-#     )
 def new_appointment(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
@@ -152,13 +157,6 @@ def new_appointment(update: Update, context: CallbackContext):
     query.message.delete()
 
 
-# def by_salon(update, context):
-#     buttons = ['Ближайший по геолокации', 'Салон 1', 'Салон 2', 'Назад']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Выбор салона",
-#         reply_markup=reply_markup,
-#     )
 def by_salon_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
@@ -177,7 +175,7 @@ def by_salon_menu(update: Update, context: CallbackContext):
     message_text = bot_strings.by_salon_menu
     keyboard = []
     for salon in all_salons:
-        keyboard.append([InlineKeyboardButton(salon.name, callback_data=f'show_by_salon_{salon.id}')])
+        keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'show_by_salon_{salon["id"]}')])
     keyboard.append([InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -186,21 +184,57 @@ def by_salon_menu(update: Update, context: CallbackContext):
 
 
 def by_master(update, context):
-    buttons = ['Мастер 1', 'Мастер 2', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Выбор мастера",
-        reply_markup=reply_markup,
-    )
+    query = update.callback_query
+    query.answer()
+
+    try:
+        masters = [{'id': 1,
+                    'name': 'Мастер 1'},
+                   {'id': 2,
+                    'name': 'Мастер 2'}]
+    except django.db.Error:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    message_text = bot_strings.by_master_menu
+    keyboard = [
+        [
+            InlineKeyboardButton(master['name'], callback_data=f'master{master["id"]}'),
+        ] for master in masters
+    ]
+    keyboard.append([
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+    ])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
 def by_service(update, context):
-    buttons = ['Услуга 1', 'Услуга 2', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Выбор услуги",
-        reply_markup=reply_markup,
-    )
+    query = update.callback_query
+    query.answer()
+
+    try:
+        services = [{'id': 1,
+                    'name': 'Услуга 1'},
+                   {'id': 2,
+                    'name': 'Услуга 2'}]
+    except django.db.Error:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    message_text = bot_strings.by_service_menu
+    keyboard = [
+        [
+            InlineKeyboardButton(service['name'], callback_data=f'service{service["id"]}'),
+        ] for service in services
+    ]
+    keyboard.append([
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+    ])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
 def get_users_phone(update, context):
@@ -309,7 +343,11 @@ class Command(BaseCommand):
 
         dispatcher.add_handler(CallbackQueryHandler(account_menu, pattern=r'^account$'))
         dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
+        dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_ap$'))
+        dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_ap$'))
         dispatcher.add_handler(CallbackQueryHandler(by_salon_menu, pattern=r'^by_salon$'))
+        dispatcher.add_handler(CallbackQueryHandler(by_master, pattern=r'^by_master$'))
+        dispatcher.add_handler(CallbackQueryHandler(by_service, pattern=r'^by_service$'))
 
         dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
 
