@@ -10,22 +10,38 @@
     ```commandline
     python -m venv venv && venv/bin/pip install -U -r requirements.txt
     ```
-#### Paзработчикам
-4. Загрузите тестовые объекты в БД:
-   ```commandline
-   python manage.py migrate && python manage.py loaddata data/test_data.json
-   ```
-5. Создайте .env файл с содержимым:
+4. Создайте .env файл с содержимым:
 
 ```
 TG_BOT_TOKEN=''
 ```
 Создайте телеграм-бота с помощью BotFather и вставьте токен, который он вам пришлёт
 .
+#### Paзработчикам
+5. Загрузите тестовые объекты в БД:
+   ```commandline
+   python manage.py migrate && python manage.py loaddata data/test_data.json
+   ```
+6. Запустите development server
+   ```commandline
+   python manage.py runserver
+   ```
+
 
 ## API endpoints
 
 Описание API с тремя путями создания заказа.
+
+Пример запроса для development server:
+```python
+# Getting available appointments for provider 1 at salon 1
+salon_id = 1
+url = f'http://127.0.0.1:8000/salon/{salon_id}/available_appointments'
+params = {
+   'provider_id': 1
+}
+response = requests.get(url, params)
+```
 
 ### Choosing salon and datetime for appointment: 
 #### Order path 1: by salon
