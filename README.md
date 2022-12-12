@@ -30,8 +30,6 @@ TG_BOT_TOKEN=''
 
 ## API endpoints
 
-Описание API с тремя путями создания заказа.
-
 Пример запроса для development server:
 ```python
 # Getting available appointments for provider 1 at salon 1
@@ -44,91 +42,53 @@ response = requests.get(url, params)
 ```
 
 ### Choosing salon and datetime for appointment: 
-#### Order path 1: by salon
-1) 
-   1) get nearest salons
-   ```
-   type: GET 
-   path: /nearest  
-   query params: lat:float, lon:float
-   ```
 
-   2) get all salons
-   ```
-   type: GET
-   path: /salons
-   ```
-2) get services by salon
-   ```
-   type: GET
-   path: /services
-   query params: salon_id:int
-   ```
-3) get providers for salon
-   ```
-   type: GET
-   path: /salon/<salon_id:int>/providers
-   ```
-4) get available appointments at this salon for this provider
+#### Show salons
+```
+type: GET
+path: /salons
 
-   ```type: GET
-   path: /salon/<salon_id:int>/available_appointments
-   query params: provider_id:int
-   optional params: n_days:int - the default lookup window for appointments is 14 days ahead, customize it with this param
-   ```
+params for nearest salons:
+   lat: float
+   lon: float
    
+optional params for filtering:
+   provider_id: int
+   service_id: int
+```
 
-#### Order path 2: by service
-1) get all services
-   ```
-   type: GET
-   path: /services
-   ```
-2) get salons for service
-   ```
-   type: GET
-   path: /salons
-   query params: service_id:int
-   ```
-3) get providers for salon
-   ```
-   type: GET
-   path: /salon/<salon_id:int>/providers
-   query params: service_id:int
-   ```
-5) get available appointments at this salon for this provider
-   ```
-   type: GET
-   path: /salon/<salon_id:int>/available_appointments
-   query params: provider_id:int
-   optional params: n_days:int - the default lookup window for appointments is 14 days ahead, customize it with this param 
-   ```
-   
-#### Order path 3: by provider
-1) get all providers
-   ```
-   type: GET
-   path: /providers
-   ```
-2) get services for this provider
-   ```
-   type: GET
-   path: /services
-   query params: provider_id:int
-   ```
-3) get salons
-   ```
-   type: GET
-   path: /salons
-   query params: provider_id:int
-   ```
-4) get appointments for salon
-   ```
-   type: GET
-   path: /salon/<salon_id:int>/available_appointments
-   query params: provider_id:int
-   optional params: n_days:int - the default lookup window for appointments is 14 days ahead, customize it with this param 
-   ```
+#### Show providers
+```
+type: GET
+path: /providers
+
+optional params for filtering:
+   salon_id: int
+   service_id: int
+```
+
+#### Show services
+```
+type: GET
+path: /services
+
+optional params for filtering:
+   salon_id: int
+   provider_id: int
+```
+
+#### Show available appointments at a salon
+```
+type: GET
+path: /salon/<salon_id:int>/available_appointments
+
+optional params: 
+   provider_id: int
+   n_days: int    the default lookup window for appointments is 14 days ahead, 
+                  customize it with this param
+```
+
+
 ### Registering a customer
 ```
 type: POST
