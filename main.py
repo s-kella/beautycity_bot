@@ -295,11 +295,25 @@ class Command(BaseCommand):
         updater = Updater(token=bot_token, use_context=True)
         dispatcher = updater.dispatcher
 
+        conversation_handler = ConversationHandler(
+            entry_points=[
+                CommandHandler('start', start),
+            ],
+            states={
+            },
+            fallbacks=[
+                CommandHandler('start', start),
+                MessageHandler(Filters.text, help_message),
+            ]
+        )
+
         dispatcher.add_handler(CallbackQueryHandler(account_menu, pattern=r'^account$'))
         dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
         dispatcher.add_handler(CallbackQueryHandler(by_salon_menu, pattern=r'^by_salon$'))
 
         dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
+
+        dispatcher.add_handler(conversation_handler)
 
         updater.start_polling()
         updater.idle()
