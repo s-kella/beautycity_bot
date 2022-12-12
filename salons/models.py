@@ -53,7 +53,7 @@ class SalonManager(models.Manager):
     def nearest(self, user_lat: float, user_lon: float, max_dist_km=25, max_results=5) -> dict:
         """
         Query salons by distance from user.
-        @return: list of tuples in the format (salon, distance_in_km)
+        @return: dict in the format {salon, distance_in_km}
         """
         nearish_salons = (self.with_degree_diff_from_user(user_lat, user_lon)
                           .filter(degree_diff__lte=1.5))
@@ -82,10 +82,19 @@ class Salon(models.Model):
     objects = SalonManager()
 
     def __str__(self):
-        return f'Салон {self.name}'
+        return f'Салон {self.name}, {self.address}'
 
-    def get_available_appointments_by_provider(self, n_days):
-        available_appts = {}
+    def get_available_services(self):
+        services = set()
+        providers = self.providers.all().distinct()
+        print(providers)
+        for provider in providers:
+            services.update(
+                Service.objects.filter(provided_by=provider)
+            )
+        return services
+
+    def get_available_appointments_by_provider(self, n_days, specific_provider=None) -> dict:
         available_providers = set()
         if n_days >= 7:
             weekdays = Weekday
@@ -94,9 +103,15 @@ class Salon(models.Model):
             for offset in range(n_days):
                 date = datetime.date.today() + datetime.timedelta(days=offset)
                 weekdays.append(date.weekday())
-        provider_schedules = self.provider_schedules.filter(weekday__in=weekdays).prefetch_related('provider')
+        if specific_provider:
+            provider_schedules = (self.provider_schedules
+                                  .filter(weekday__in=weekdays, provider=specific_provider)
+                                  .prefetch_related('provider'))
+        else:
+            provider_schedules = self.provider_schedules.filter(weekday__in=weekdays).prefetch_related('provider')
         for schedule in provider_schedules:
             available_providers.add(schedule.provider)
+        available_appts = {}
         for provider in available_providers:
             available_appts.update({provider: provider.get_available_hours(n_days)})
         return available_appts
@@ -117,7 +132,7 @@ class Provider(models.Model):
     def __str__(self):
         return f'{self.first_name} {self.last_name}'
 
-    def get_available_hours(self, n_days):
+    def get_available_hours(self, n_days) -> list[dict]:
         working_timeslots = self.working_timeslots.all()
         working_hours = list(map(
             extract_working_hours,
@@ -137,7 +152,11 @@ class Provider(models.Model):
                 if todays_appointments.exists():
                     appt_hours = list(todays_appointments.values_list('datetime__time__hour', flat=True))
                 available_hours = list(filter(lambda hour: hour not in appt_hours, todays_hours))
-                available_times.append({'weekday': date.weekday(), 'available_hours': available_hours})
+                available_times.append({
+                    'date': date,
+                    'weekday': Weekday(date.weekday()).label,
+                    'available_hours': available_hours,
+                })
         return available_times
 
 
