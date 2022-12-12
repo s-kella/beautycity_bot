@@ -27,7 +27,7 @@ TG_BOT_TOKEN=''
 
 Описание API с тремя путями создания заказа.
 
-###Choosing salon and datetime for appointment: 
+### Choosing salon and datetime for appointment: 
 #### Order path 1: by salon
 1) 
    1) get nearest salons
