@@ -1,10 +1,25 @@
 import os
 from dotenv import load_dotenv
+import logging
+import django.db
 
-from telegram.ext import Updater
-from telegram.ext import CommandHandler
-from telegram.ext import MessageHandler, Filters
+# from salons.models import Weekday, Salon, Provider, ProviderSchedule, Service, Customer, Appointment
+from django.core.management.base import BaseCommand
 from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, LabeledPrice
+from telegram import PreCheckoutQuery
+from telegram import error as telegram_error
+from telegram.ext import (
+    CallbackContext,
+    CallbackQueryHandler,
+    CommandHandler,
+    ConversationHandler,
+    Filters,
+    MessageHandler,
+    Updater,
+    PreCheckoutQueryHandler,
+)
+import bot_strings
 
 
 def set_keyboards_buttons(buttons):
@@ -15,11 +30,11 @@ def set_keyboards_buttons(buttons):
 
 
 def get_keyboard(buttons, one_time_keyboard=False):
-    reply_markup = ReplyKeyboardMarkup (
-            keyboard = [set_keyboards_buttons(buttons)],
-            resize_keyboard = True,
-            one_time_keyboard = one_time_keyboard,
-        )
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard=[set_keyboards_buttons(buttons)],
+        resize_keyboard=True,
+        one_time_keyboard=one_time_keyboard,
+    )
 
     return reply_markup
 
@@ -28,26 +43,66 @@ def start(update, context):
     user = update.message.from_user
     update.message.reply_text(
         text=f'Привет! Добро пожаловать в бот BeautyCity!')
-    menu(update, context)
-    #registration(update, context)
+    main_menu(update, context)
+    # registration(update, context)
 
 
-def menu(update, context):
-    buttons = ['Личный кабинет', 'Записаться']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Главное меню:",
-        reply_markup=reply_markup,
-    )
+# def menu(update, context):
+#     buttons = ['Личный кабинет', 'Записаться']
+#     reply_markup = get_keyboard(buttons)
+#     update.message.reply_text(
+#         text="Главное меню:",
+#         reply_markup=reply_markup,
+#     )
+def main_menu(update: Update, context: CallbackContext):
+    query = update.callback_query
+    if query:
+        query.answer()
+
+    message_text = bot_strings.main_menu
+
+    keyboard = [
+        [
+            InlineKeyboardButton(bot_strings.new_appointment_button, callback_data='new_appointment'),
+        ],
+        [
+            InlineKeyboardButton(bot_strings.account_menu_button, callback_data='account'),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+
+    if query:
+        query.message.delete()
 
 
-def lk(update, context):
-    buttons = ['Мои записи', 'Прошлые записи', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Личный кабинет:",
-        reply_markup=reply_markup,
-    )
+# def lk(update, context):
+#     buttons = ['Мои записи', 'Прошлые записи', 'Назад']
+#     reply_markup = get_keyboard(buttons)
+#     update.message.reply_text(
+#         text="Личный кабинет:",
+#         reply_markup=reply_markup,
+#     )
+def account_menu(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+
+    message_text = bot_strings.account_menu
+    keyboard = [
+        # [
+        #     InlineKeyboardButton(bot_strings.favorite_recipes_button, callback_data='favorite_recipes'),
+        # ],
+        # [
+        #     InlineKeyboardButton(bot_strings.excluded_recipes_button, callback_data='excluded_recipes'),
+        # ],
+        [
+            InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
 def my_appointments(update, context):
@@ -65,22 +120,69 @@ def past_appointments(update, context):
     )
 
 
-def new_appointment(update, context):
-    buttons = ['По салону', 'По  услуге', 'По мастеру', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Новая запись",
-        reply_markup=reply_markup,
-    )
+# def new_appointment(update, context):
+#     buttons = ['По салону', 'По  услуге', 'По мастеру', 'Назад']
+#     reply_markup = get_keyboard(buttons)
+#     update.message.reply_text(
+#         text="Новая запись",
+#         reply_markup=reply_markup,
+#     )
+def new_appointment(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+
+    message_text = bot_strings.new_appointment
+    keyboard = [
+        [
+            InlineKeyboardButton(bot_strings.by_salon, callback_data='by_salon'),
+        ],
+        [
+            InlineKeyboardButton(bot_strings.by_service, callback_data='by_service'),
+        ],
+        [
+            InlineKeyboardButton(bot_strings.by_master, callback_data='by_master'),
+        ],
+        [
+            InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+        ],
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
-def by_salon(update, context):
-    buttons = ['Ближайший по геолокации', 'Салон 1', 'Салон 2', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Выбор салона",
-        reply_markup=reply_markup,
-    )
+# def by_salon(update, context):
+#     buttons = ['Ближайший по геолокации', 'Салон 1', 'Салон 2', 'Назад']
+#     reply_markup = get_keyboard(buttons)
+#     update.message.reply_text(
+#         text="Выбор салона",
+#         reply_markup=reply_markup,
+#     )
+def by_salon_menu(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+
+    try:
+        all_salons = [{'id': 1,
+                       'name': 'По геопозиции'},
+                      {'id': 2,
+                       'name': 'Салон 1'},
+                      {'id': 3,
+                       'name': 'Салон 2'}]
+    except django.db.Error:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    message_text = bot_strings.by_salon_menu
+    keyboard = []
+    for salon in all_salons:
+        keyboard.append([InlineKeyboardButton(salon.name, callback_data=f'show_by_salon_{salon.id}')])
+    keyboard.append([InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
 def by_master(update, context):
@@ -115,7 +217,7 @@ def registration(update, context):
     users_personal_data = {
         'first_name': update.message.from_user.first_name,
         'last_name': update.message.from_user.last_name,
-        #'phone_number': get_users_phone(update, context)
+        # 'phone_number': get_users_phone(update, context)
     }
     update.message.reply_text(
         text="Регистрация",
@@ -140,48 +242,68 @@ def confirm_appointment(update, context):
     )
 
 
-def message_handler(update, context):
-    text = update.message.text
+# def message_handler(update, context):
+#     text = update.message.text
+#
+#     if text == 'Назад':
+#         menu(update, context)
+#
+#     if text == 'Личный кабинет':
+#         lk(update, context)
+#
+#     if text == 'Мои записи':
+#         my_appointments(update, context)
+#
+#     if text == 'Прошлые записи':
+#         past_appointments(update, context)
+#
+#     if text == 'Записаться':
+#         new_appointment(update, context)
+#
+#     # TODO организовать очерёдность салон/услуга/мастер в зависимости от выбранного варианта
+#     if text == 'По салону':
+#         by_salon(update, context)
+#
+#     if text == 'По  услуге':
+#         by_service(update, context)
+#
+#     if text == 'По мастеру':
+#         by_master(update, context)
+#
+#     if text == 'Политика обработки данных':
+#         send_file_policy(update, context)
 
-    if text == 'Назад':
-        menu(update, context)
 
-    if text == 'Личный кабинет':
-        lk(update, context)
+def help_message(update: Update, context: CallbackContext):
+    """Send help text"""
+    update.effective_chat.send_message('TEXT: HELP')
 
-    if text == 'Мои записи':
-        my_appointments(update, context)
 
-    if text == 'Прошлые записи':
-        past_appointments(update, context)
+class Command(BaseCommand):
+    help = 'Запуск чат-бота'
 
-    if text == 'Записаться':
-        new_appointment(update, context)
+    def handle(self, *args, **options):
+        logging.basicConfig(
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            level=logging.INFO
+        )
+        logger = logging.getLogger(__name__)
 
-    # TODO организовать очерёдность салон/услуга/мастер в зависимости от выбранного варианта
-    if text == 'По салону':
-        by_salon(update, context)
+        load_dotenv()
+        bot_token = os.getenv('TG_BOT_TOKEN')
 
-    if text == 'По  услуге':
-        by_service(update, context)
+        updater = Updater(token=bot_token, use_context=True)
+        dispatcher = updater.dispatcher
 
-    if text == 'По мастеру':
-        by_master(update, context)
+        dispatcher.add_handler(CallbackQueryHandler(account_menu, pattern=r'^account$'))
+        dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
+        dispatcher.add_handler(CallbackQueryHandler(by_salon_menu, pattern=r'^by_salon$'))
 
-    if text == 'Политика обработки данных':
-        send_file_policy(update, context)
+        dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
+
+        updater.start_polling()
+        updater.idle()
 
 
 if __name__ == '__main__':
-    load_dotenv()
-    bot_token = os.getenv('TG_BOT_TOKEN')
-
-    updater = Updater(token=bot_token, use_context=True)
-    dispatcher = updater.dispatcher
-
-    start_handler = CommandHandler('start', start)
-    dispatcher.add_handler(start_handler)
-    updater.dispatcher.add_handler(MessageHandler(Filters.all, message_handler))
-
-    updater.start_polling()
-    updater.idle()
+    Command().handle()
