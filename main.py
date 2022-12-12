@@ -182,7 +182,7 @@ def by_salon_menu(update: Update, context: CallbackContext):
     message_text = bot_strings.by_salon_menu
     keyboard = []
     for salon in all_salons:
-        keyboard.append([InlineKeyboardButton(salon.name, callback_data=f'show_by_salon_{salon.id}')])
+        keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'show_by_salon_{salon["id"]}')])
     keyboard.append([InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
