@@ -41,8 +41,12 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return round(km, 3)
 
 
-# TODO add pre-filtering by city for larger DBs
 class SalonManager(models.Manager):
+    pass
+
+
+# TODO add pre-filtering by city for larger DBs
+class NearestQuerySet(models.QuerySet):
     def with_degree_diff_from_user(self, user_lat: float, user_lon: float):
         return self.annotate(
             degree_diff_lat=Func(F('latitude') - user_lat, function='ABS', output_field=models.FloatField()),
@@ -79,7 +83,7 @@ class Salon(models.Model):
     time_close = models.TimeField("время закрытия",
                                   help_text=EXACT_HOURS_TEXT)
 
-    objects = SalonManager()
+    objects = SalonManager.from_queryset(NearestQuerySet)()
 
     def __str__(self):
         return f'Салон {self.name}, {self.address}'
