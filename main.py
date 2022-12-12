@@ -157,13 +157,6 @@ def new_appointment(update: Update, context: CallbackContext):
     query.message.delete()
 
 
-# def by_salon(update, context):
-#     buttons = ['Ближайший по геолокации', 'Салон 1', 'Салон 2', 'Назад']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Выбор салона",
-#         reply_markup=reply_markup,
-#     )
 def by_salon_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
@@ -191,21 +184,57 @@ def by_salon_menu(update: Update, context: CallbackContext):
 
 
 def by_master(update, context):
-    buttons = ['Мастер 1', 'Мастер 2', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Выбор мастера",
-        reply_markup=reply_markup,
-    )
+    query = update.callback_query
+    query.answer()
+
+    try:
+        masters = [{'id': 1,
+                    'name': 'Мастер 1'},
+                   {'id': 2,
+                    'name': 'Мастер 2'}]
+    except django.db.Error:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    message_text = bot_strings.by_master_menu
+    keyboard = [
+        [
+            InlineKeyboardButton(master['name'], callback_data=f'master{master["id"]}'),
+        ] for master in masters
+    ]
+    keyboard.append([
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+    ])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
 def by_service(update, context):
-    buttons = ['Услуга 1', 'Услуга 2', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Выбор услуги",
-        reply_markup=reply_markup,
-    )
+    query = update.callback_query
+    query.answer()
+
+    try:
+        services = [{'id': 1,
+                    'name': 'Услуга 1'},
+                   {'id': 2,
+                    'name': 'Услуга 2'}]
+    except django.db.Error:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    message_text = bot_strings.by_service_menu
+    keyboard = [
+        [
+            InlineKeyboardButton(service['name'], callback_data=f'service{service["id"]}'),
+        ] for service in services
+    ]
+    keyboard.append([
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+    ])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
 def get_users_phone(update, context):
@@ -317,6 +346,8 @@ class Command(BaseCommand):
         dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_ap$'))
         dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_ap$'))
         dispatcher.add_handler(CallbackQueryHandler(by_salon_menu, pattern=r'^by_salon$'))
+        dispatcher.add_handler(CallbackQueryHandler(by_master, pattern=r'^by_master$'))
+        dispatcher.add_handler(CallbackQueryHandler(by_service, pattern=r'^by_service$'))
 
         dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
 
