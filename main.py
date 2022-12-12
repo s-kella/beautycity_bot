@@ -47,13 +47,6 @@ def start(update, context):
     # registration(update, context)
 
 
-# def menu(update, context):
-#     buttons = ['Личный кабинет', 'Записаться']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Главное меню:",
-#         reply_markup=reply_markup,
-#     )
 def main_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     if query:
@@ -77,13 +70,6 @@ def main_menu(update: Update, context: CallbackContext):
         query.message.delete()
 
 
-# def lk(update, context):
-#     buttons = ['Мои записи', 'Прошлые записи', 'Назад']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Личный кабинет:",
-#         reply_markup=reply_markup,
-#     )
 def account_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
@@ -120,13 +106,6 @@ def past_appointments(update, context):
     )
 
 
-# def new_appointment(update, context):
-#     buttons = ['По салону', 'По  услуге', 'По мастеру', 'Назад']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Новая запись",
-#         reply_markup=reply_markup,
-#     )
 def new_appointment(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
@@ -152,20 +131,13 @@ def new_appointment(update: Update, context: CallbackContext):
     query.message.delete()
 
 
-# def by_salon(update, context):
-#     buttons = ['Ближайший по геолокации', 'Салон 1', 'Салон 2', 'Назад']
-#     reply_markup = get_keyboard(buttons)
-#     update.message.reply_text(
-#         text="Выбор салона",
-#         reply_markup=reply_markup,
-#     )
 def by_salon_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
     try:
         all_salons = [{'id': 1,
-                       'name': 'По геопозиции'},
+                       'name': 'Ближайший по геопозиции'},
                       {'id': 2,
                        'name': 'Салон 1'},
                       {'id': 3,
@@ -240,38 +212,6 @@ def confirm_appointment(update, context):
         text="Ваша запись:\n[дата]\n[услуга]\n[мастер]\n[салон]",
         reply_markup=reply_markup,
     )
-
-
-# def message_handler(update, context):
-#     text = update.message.text
-#
-#     if text == 'Назад':
-#         menu(update, context)
-#
-#     if text == 'Личный кабинет':
-#         lk(update, context)
-#
-#     if text == 'Мои записи':
-#         my_appointments(update, context)
-#
-#     if text == 'Прошлые записи':
-#         past_appointments(update, context)
-#
-#     if text == 'Записаться':
-#         new_appointment(update, context)
-#
-#     # TODO организовать очерёдность салон/услуга/мастер в зависимости от выбранного варианта
-#     if text == 'По салону':
-#         by_salon(update, context)
-#
-#     if text == 'По  услуге':
-#         by_service(update, context)
-#
-#     if text == 'По мастеру':
-#         by_master(update, context)
-#
-#     if text == 'Политика обработки данных':
-#         send_file_policy(update, context)
 
 
 def help_message(update: Update, context: CallbackContext):
