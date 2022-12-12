@@ -151,6 +151,12 @@ post data:
    service_id: int
 ```
 
+### Past and future appointments for customer
+```
+/customer/<int:customer_id>/past
+/customer/<int:customer_id>/future
+```
+
 
 ## Как пользоваться
 
