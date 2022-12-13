@@ -10,7 +10,7 @@ urlpatterns = [
     path('providers/', views.all_providers, name='providers'),
 
     path('register_customer/', views.register_customer, name='register_customer'),
-    path('customer/<int:customer_id>/', views.show_customer, name='customer'),
+    path('customer/', views.show_customer, name='customer'),
     path('customer/<int:customer_id>/past/', views.past_appointments, name='past_appointments'),
     path('customer/<int:customer_id>/future/', views.future_appointments, name='future_appointments'),
     path('make_appointment/', views.make_appointment, name='future_appointments'),
