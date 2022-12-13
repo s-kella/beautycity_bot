@@ -22,7 +22,7 @@ from telegram.ext import (
 )
 import bot_strings
 
-SALON, MASTER, SERVICE, DATE = range(4)
+SALON, MASTER, SERVICE, DATE, CONFIRM = range(5)
 
 
 def update_request_query_params(query, context: CallbackContext):
@@ -312,7 +312,6 @@ def get_users_phone(update, context):
     # context.bot.sendMessage(update.effective_chat.id, message, reply_markup=reply_markup)
 
 
-# TODO сделать, чтобы новые кнопки не появлялись, пока пользователь не даст телефон
 def registration(update, context):
     query = update.callback_query
     query.answer()
@@ -344,106 +343,32 @@ def send_file_policy(update, context):
     )
 
 
+def appointment_is_confirmed(update, context):
+    query = update.callback_query
+    query.answer()
+    context.bot.send_message(chat_id=update.effective_chat.id, text=bot_strings.confirmed)
+    # message_text = bot_strings.confirmed
+    # update.effective_chat.send_message(message_text)
+    # query.message.delete()
+
+
 def confirm_appointment(update, context):
-    buttons = ['Подтвердить запись', 'Назад']
-    reply_markup = get_keyboard(buttons)
-    update.message.reply_text(
-        text="Ваша запись:\n[дата]\n[услуга]\n[мастер]\n[салон]",
-        reply_markup=reply_markup,
-    )
+    query = update.callback_query
+    query.answer()
+    message_text = "Ваша запись:\n[дата]\n[услуга]\n[мастер]\n[салон]"
+    keyboard = [[
+        InlineKeyboardButton(bot_strings.confirm, callback_data='confirm'),
+    ], [
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
 
 
 def help_message(update: Update, context: CallbackContext):
     """Send help text"""
     update.effective_chat.send_message('TEXT: HELP')
-
-
-class Command(BaseCommand):
-    help = 'Запуск чат-бота'
-
-    def handle(self, *args, **options):
-        logging.basicConfig(
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            level=logging.INFO
-        )
-        logger = logging.getLogger(__name__)
-
-        load_dotenv()
-        bot_token = os.getenv('TG_BOT_TOKEN')
-
-        updater = Updater(token=bot_token, use_context=True)
-        dispatcher = updater.dispatcher
-
-        conversation_handler = ConversationHandler(
-            entry_points=[
-                CommandHandler('start', start),
-            ],
-            states={
-            },
-            fallbacks=[
-                CommandHandler('start', start),
-                MessageHandler(Filters.text, help_message),
-            ]
-        )
-
-        conversation_handler_master = ConversationHandler(
-            entry_points=[
-                CallbackQueryHandler(by_master, pattern=r'^by_master$'),
-            ],
-            states={
-                MASTER: [CallbackQueryHandler(by_service, pattern=r'^master\d$')],
-                SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
-                SALON: [CallbackQueryHandler(by_date, pattern=r'^salon\d$')]
-            },
-            fallbacks=[
-                CallbackQueryHandler(by_master, pattern=r'^by_master$')
-            ]
-        )
-
-        conversation_handler_salon = ConversationHandler(
-            entry_points=[
-                CallbackQueryHandler(by_salon, pattern=r'^by_salon$'),
-            ],
-            states={
-                SALON: [CallbackQueryHandler(by_service, pattern=r'^salon\d$')],
-                SERVICE: [CallbackQueryHandler(by_master, pattern=r'^service\d$')],
-                MASTER: [CallbackQueryHandler(by_date, pattern=r'^master\d$')]
-            },
-            fallbacks=[
-                CallbackQueryHandler(by_salon, pattern=r'^by_salon$')
-            ]
-        )
-
-        conversation_handler_service = ConversationHandler(
-            entry_points=[
-                CallbackQueryHandler(by_service, pattern=r'^by_service$'),
-            ],
-            states={
-                SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
-                SALON: [CallbackQueryHandler(by_master, pattern=r'^salon\d$')],
-                MASTER: [CallbackQueryHandler(by_date, pattern=r'^master\d$')]
-            },
-            fallbacks=[
-                CallbackQueryHandler(by_salon, pattern=r'^by_service$')
-            ]
-        )
-
-        dispatcher.add_handler(CallbackQueryHandler(account_menu, pattern=r'^account$'))
-        dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
-        dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_ap$'))
-        dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_ap$'))
-        dispatcher.add_handler(CallbackQueryHandler(registration, pattern=r'^registration$'))
-        dispatcher.add_handler(CallbackQueryHandler(send_file_policy, pattern=r'^policy$'))
-
-        dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
-
-        dispatcher.add_handler(conversation_handler)
-        dispatcher.add_handler(conversation_handler_master)
-        dispatcher.add_handler(conversation_handler_salon)
-        dispatcher.add_handler(conversation_handler_service)
-
-        updater.start_polling()
-        updater.idle()
 
 
 def main():
@@ -477,7 +402,9 @@ def main():
         ],
         states={
             MASTER: [CallbackQueryHandler(by_service, pattern=r'^master\d$')],
-            SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')]
+            SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
+            SALON: [CallbackQueryHandler(confirm_appointment, pattern=r'^salon\d$')],
+            # CONFIRM: [CallbackQueryHandler(appointment_is_confirmed, pattern=r'^confirm$')]
         },
         fallbacks=[
             CallbackQueryHandler(by_master, pattern=r'^by_master$')
@@ -490,7 +417,8 @@ def main():
         ],
         states={
             SALON: [CallbackQueryHandler(by_service, pattern=r'^salon\d$')],
-            SERVICE: [CallbackQueryHandler(by_master, pattern=r'^service\d$')]
+            SERVICE: [CallbackQueryHandler(by_master, pattern=r'^service\d$')],
+            MASTER: [CallbackQueryHandler(confirm_appointment, pattern=r'^master\d$')]
         },
         fallbacks=[
             CallbackQueryHandler(by_salon, pattern=r'^by_salon$')
@@ -503,7 +431,8 @@ def main():
         ],
         states={
             SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
-            SALON: [CallbackQueryHandler(by_master, pattern=r'^salon\d$')]
+            SALON: [CallbackQueryHandler(by_master, pattern=r'^salon\d$')],
+            MASTER: [CallbackQueryHandler(confirm_appointment, pattern=r'^master\d$')]
         },
         fallbacks=[
             CallbackQueryHandler(by_salon, pattern=r'^by_service$')
@@ -524,7 +453,6 @@ def main():
 
     updater.start_polling()
     updater.idle()
-
 
 
 if __name__ == '__main__':
