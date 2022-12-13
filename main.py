@@ -27,11 +27,11 @@ SALON, MASTER, SERVICE, DATE, CONFIRM = range(5)
 
 def update_request_query_params(query, context: CallbackContext):
     selection = query.data
-    if 'by_' in selection:
+    if 'choose_' in selection:
         return
 
-    if 'master' in selection:
-        context.chat_data['provider_id'] = selection.replace('master', '')
+    if 'provider' in selection:
+        context.chat_data['provider_id'] = selection.replace('provider', '')
     if 'service' in selection:
         context.chat_data['service_id'] = selection.replace('service', '')
     if 'salon' in selection:
@@ -162,13 +162,13 @@ def new_appointment(update: Update, context: CallbackContext):
     message_text = bot_strings.new_appointment
     keyboard = [
         [
-            InlineKeyboardButton(bot_strings.by_salon, callback_data='by_salon'),
+            InlineKeyboardButton(bot_strings.choose_salon, callback_data='choose_salon'),
         ],
         [
-            InlineKeyboardButton(bot_strings.by_service, callback_data='by_service'),
+            InlineKeyboardButton(bot_strings.choose_service, callback_data='choose_service'),
         ],
         [
-            InlineKeyboardButton(bot_strings.by_master, callback_data='by_master'),
+            InlineKeyboardButton(bot_strings.choose_provider, callback_data='choose_provider'),
         ],
         [
             InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
@@ -180,7 +180,7 @@ def new_appointment(update: Update, context: CallbackContext):
     query.message.delete()
 
 
-def by_salon(update: Update, context: CallbackContext):
+def choose_salon(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
@@ -197,7 +197,7 @@ def by_salon(update: Update, context: CallbackContext):
         return main_menu(update, context)
 
     all_salons = response.json()['data']
-    message_text = bot_strings.by_salon_menu
+    message_text = bot_strings.choose_salon_menu
     keyboard = []
     for salon in all_salons:
 
@@ -211,7 +211,7 @@ def by_salon(update: Update, context: CallbackContext):
     return SALON
 
 
-def by_master(update: Update, context: CallbackContext):
+def choose_provider(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
@@ -227,11 +227,11 @@ def by_master(update: Update, context: CallbackContext):
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
-    masters = response.json()['data']
-    message_text = bot_strings.by_master_menu
+    providers = response.json()['data']
+    message_text = bot_strings.choose_provider_menu
     keyboard = []
-    for master in masters:
-        keyboard.append([InlineKeyboardButton(master['first_name'], callback_data=f'master{master["pk"]}')])
+    for provider in providers:
+        keyboard.append([InlineKeyboardButton(provider['first_name'], callback_data=f'provider{provider["pk"]}')])
     keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
@@ -239,7 +239,7 @@ def by_master(update: Update, context: CallbackContext):
     return MASTER
 
 
-def by_service(update: Update, context: CallbackContext):
+def choose_service(update: Update, context: CallbackContext):
     context.chat_data['service'] = 1
     query = update.callback_query
     query.answer()
@@ -258,7 +258,7 @@ def by_service(update: Update, context: CallbackContext):
         return main_menu(update, context)
 
     services = response.json()['data']
-    message_text = bot_strings.by_service_menu
+    message_text = bot_strings.choose_service_menu
     keyboard = []
     for service in services:
         keyboard.append([InlineKeyboardButton(service['name'], callback_data=f'service{service["pk"]}')])
@@ -269,7 +269,7 @@ def by_service(update: Update, context: CallbackContext):
     return SERVICE
 
 
-def by_date(update: Update, context: CallbackContext):
+def choose_date(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
     salon_id = 1
@@ -296,7 +296,7 @@ def by_date(update: Update, context: CallbackContext):
 def get_users_phone(update, context):
     query = update.callback_query
     query.answer()
-    message_text = bot_strings.by_service_menu
+    message_text = bot_strings.choose_service_menu
     keyboard = [[
         InlineKeyboardButton(str('Предоставить номер телефона'), request_contact=True),
     ], [
@@ -396,46 +396,46 @@ def main():
         ]
     )
 
-    conversation_handler_master = ConversationHandler(
+    conversation_handler_provider = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(by_master, pattern=r'^by_master$'),
+            CallbackQueryHandler(choose_provider, pattern=r'^choose_provider$'),
         ],
         states={
-            MASTER: [CallbackQueryHandler(by_service, pattern=r'^master\d$')],
-            SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
+            MASTER: [CallbackQueryHandler(choose_service, pattern=r'^provider\d$')],
+            SERVICE: [CallbackQueryHandler(choose_salon, pattern=r'^service\d$')],
             SALON: [CallbackQueryHandler(confirm_appointment, pattern=r'^salon\d$')],
             # CONFIRM: [CallbackQueryHandler(appointment_is_confirmed, pattern=r'^confirm$')]
         },
         fallbacks=[
-            CallbackQueryHandler(by_master, pattern=r'^by_master$')
+            CallbackQueryHandler(choose_provider, pattern=r'^choose_provider$')
         ]
     )
 
     conversation_handler_salon = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(by_salon, pattern=r'^by_salon$'),
+            CallbackQueryHandler(choose_salon, pattern=r'^choose_salon$'),
         ],
         states={
-            SALON: [CallbackQueryHandler(by_service, pattern=r'^salon\d$')],
-            SERVICE: [CallbackQueryHandler(by_master, pattern=r'^service\d$')],
-            MASTER: [CallbackQueryHandler(confirm_appointment, pattern=r'^master\d$')]
+            SALON: [CallbackQueryHandler(choose_service, pattern=r'^salon\d$')],
+            SERVICE: [CallbackQueryHandler(choose_provider, pattern=r'^service\d$')],
+            MASTER: [CallbackQueryHandler(confirm_appointment, pattern=r'^provider\d$')]
         },
         fallbacks=[
-            CallbackQueryHandler(by_salon, pattern=r'^by_salon$')
+            CallbackQueryHandler(choose_salon, pattern=r'^choose_salon$')
         ]
     )
 
     conversation_handler_service = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(by_service, pattern=r'^by_service$'),
+            CallbackQueryHandler(choose_service, pattern=r'^choose_service$'),
         ],
         states={
-            SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
-            SALON: [CallbackQueryHandler(by_master, pattern=r'^salon\d$')],
-            MASTER: [CallbackQueryHandler(confirm_appointment, pattern=r'^master\d$')]
+            SERVICE: [CallbackQueryHandler(choose_salon, pattern=r'^service\d$')],
+            SALON: [CallbackQueryHandler(choose_provider, pattern=r'^salon\d$')],
+            MASTER: [CallbackQueryHandler(confirm_appointment, pattern=r'^provider\d$')]
         },
         fallbacks=[
-            CallbackQueryHandler(by_salon, pattern=r'^by_service$')
+            CallbackQueryHandler(choose_salon, pattern=r'^choose_service$')
         ]
     )
 
@@ -447,7 +447,7 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
 
     dispatcher.add_handler(conversation_handler)
-    dispatcher.add_handler(conversation_handler_master)
+    dispatcher.add_handler(conversation_handler_provider)
     dispatcher.add_handler(conversation_handler_salon)
     dispatcher.add_handler(conversation_handler_service)
 
