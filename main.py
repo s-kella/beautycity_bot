@@ -167,11 +167,11 @@ def by_salon(update: Update, context: CallbackContext):
         url = f'http://127.0.0.1:8000/salons'
         response = requests.get(url)
         response.raise_for_status()
-        all_salons = response.json()['data']
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
+    all_salons = response.json()['data']
     message_text = bot_strings.by_salon_menu
     keyboard = [[InlineKeyboardButton(bot_strings.nearest_salon, callback_data='new_appointment')]]
     for salon in all_salons:
@@ -193,11 +193,11 @@ def by_master(update: Update, context: CallbackContext):
         url = f'http://127.0.0.1:8000/providers'
         response = requests.get(url)
         response.raise_for_status()
-        masters = response.json()['data']
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
+    masters = response.json()['data']
     message_text = bot_strings.by_master_menu
     keyboard = []
     for master in masters:
@@ -213,18 +213,15 @@ def by_service(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
-    url = f'http://127.0.0.1:8000/services'
-    response = requests.get(url)
-
     try:
         url = f'http://127.0.0.1:8000/services'
         response = requests.get(url)
         response.raise_for_status()
-        services = response.json()['data']
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
+    services = response.json()['data']
     message_text = bot_strings.by_service_menu
     keyboard = []
     for service in services:
