@@ -1,18 +1,14 @@
 import datetime
 import json
+import urllib.parse
 
 from django.core import serializers
 from django.forms.models import model_to_dict
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, reverse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from .models import Appointment, Customer, Provider, Salon, Service
-
-
-def index(request):
-    return JsonResponse({'status': 'OK'})
 
 
 def format_json_response(results: list | dict):
@@ -24,8 +20,7 @@ def queryset_as_json_response(queryset, fields: list):
     serialized_instances = serializers.serialize('json', queryset, fields=fields)
     results = [{'pk': instance['pk'], **instance['fields']} for instance in json.loads(serialized_instances)]
     response = format_json_response(results)
-
-    return JsonResponse(response)
+    return Response(response)
 
 
 def serialize_customer(customer):
@@ -48,17 +43,26 @@ def serialize_appointment(appt):
     }
 
 
+@api_view(['GET'])
+def index(request):
+    return Response({'status': 'OK'})
+
+
+@api_view(['GET'])
 def all_salons(request):
     query = request.GET.dict()
     salons = Salon.objects.all()
     if 'provider_id' in query and query['provider_id']:
-        salons = salons.filter(provider=query['provider_id']).distinct()
-    return queryset_as_json_response(salons, ['name', 'address', 'time_open', 'time_close'])
+        provider = get_object_or_404(Provider, pk=query['provider_id'])
+        salons = salons.filter(provider=provider).distinct()
+    if 'service_id' in query and query['service_id']:
+        service = get_object_or_404(Service, pk=query['service_id'])
+        salons = salons.filter(provider__service=service).distinct().order_by('pk')
 
+    if 'lat' not in query:
+        return queryset_as_json_response(salons, ['name', 'city', 'address', 'time_open', 'time_close'])
 
-def nearest_salons(request):
-    query = request.GET.dict()
-    salon_distances = Salon.objects.nearest(float(query['lat']), float(query['lon']))
+    salon_distances = salons.nearest(float(query['lat']), float(query['lon']))
     results = []
     for salon, distance in salon_distances.items():
         results.append({
@@ -66,25 +70,37 @@ def nearest_salons(request):
             'distance': distance
         })
     response = format_json_response(results)
-    return JsonResponse(response)
+    return Response(response)
 
 
-def get_services_for_salon(request, salon_id):
-    salon = get_object_or_404(Salon, pk=salon_id)
-    services = salon.get_available_services()
+@api_view(['GET'])
+def all_services(request):
+    query = request.GET.dict()
+    services = Service.objects.all()
+    if 'provider_id' in query and query['provider_id']:
+        provider = get_object_or_404(Provider, pk=query['provider_id'])
+        services = services.filter(provided_by=provider)
+    if 'salon_id' in query and query['salon_id']:
+        salon = get_object_or_404(Salon, pk=query['salon_id'])
+        services = services.filter(provided_by__works_at=salon).distinct().order_by('pk')
     return queryset_as_json_response(services, ['name', 'price'])
 
 
-def get_providers_for_salon(request, salon_id):
+@api_view(['GET'])
+def all_providers(request):
     query = request.GET.dict()
-    salon = get_object_or_404(Salon, pk=salon_id)
-    providers = Provider.objects.filter(works_at=salon).distinct()
+    providers = Provider.objects.all()
+    if 'salon_id' in query and query['salon_id']:
+        salon = get_object_or_404(Salon, pk=query['salon_id'])
+        providers = providers.filter(works_at=salon).distinct()
     if 'service_id' in query and query['service_id']:
-        providers = providers.filter(service=query['service_id'])
-    return JsonResponse(format_json_response([str(provider) for provider in providers]))
+        service = get_object_or_404(Service, pk=query['service_id'])
+        providers = providers.filter(service=service)
+    return queryset_as_json_response(providers, ['first_name', 'last_name'])
 
 
-def get_available_appointments_for_salon(request, salon_id):
+@api_view(['GET'])
+def available_appointments_for_salon(request, salon_id):
     query = request.GET.dict()
     default_days = 14
     n_days = int(query['n_days']) if 'n_days' in query else default_days
@@ -97,39 +113,7 @@ def get_available_appointments_for_salon(request, salon_id):
     for provider, hours in hours_by_provider.items():
         result.update({str(provider): hours})
     response = format_json_response(result)
-    return JsonResponse(response)
-
-
-def get_services(request):
-    query = request.GET.dict()
-    services = Service.objects.all()
-    if 'provider_id' in query and query['provider_id']:
-        services = services.filter(provided_by=query['provider_id'])
-    return queryset_as_json_response(services, ['name', 'price'])
-
-
-# TODO option: nearest
-def get_salons_for_service(request, service_id):
-    query = request.GET.dict()
-    default_days = 14
-    n_days = int(query['n_days']) if 'n_days' in query else default_days
-    service = get_object_or_404(Service, pk=service_id)
-    salons = service.get_available_appointments_by_salon(n_days).keys()
-    result = []
-    for salon in salons:
-        result.append(str(salon))
-    response = format_json_response(result)
-    return JsonResponse(response)
-
-
-def get_providers_by_service(request, service_id):
-    service = get_object_or_404(Service, pk=service_id)
-    providers = service.provided_by.all()
-    return JsonResponse(format_json_response([str(provider) for provider in providers]))
-
-
-def all_providers(request):
-    return queryset_as_json_response(Provider.objects.all(), ['first_name', 'last_name'])
+    return Response(response)
 
 
 @api_view(['POST'])
@@ -143,9 +127,10 @@ def register_customer(request):
         last_name=last_name,
         phone_number=request.data['phone_number'],
     )
-    return Response(format_json_response(
-        serialize_customer(customer)
-    ))
+    return Response({
+        'status': 'created',
+        'data': serialize_customer(customer)
+    })
 
 
 @api_view(['POST'])
@@ -161,27 +146,59 @@ def make_appointment(request):
         provider=provider,
         service=service,
     )
-    return JsonResponse({'status': 'OK',
-                         'data': serialize_appointment(appt)})
+    return Response({'status': 'created',
+                     'data': serialize_appointment(appt)})
 
 
-def get_past_appointments(request, customer_id):
+@api_view(['GET'])
+def past_appointments(request, customer_id):
     customer = get_object_or_404(Customer, pk=customer_id)
     appts = customer.get_past_appointments()
     results = []
     for appt in appts:
         results.append(serialize_appointment(appt))
     response = format_json_response(results)
-    return JsonResponse(response)
+    return Response(response)
 
 
-def get_future_appointments(request, customer_id):
+@api_view(['GET'])
+def future_appointments(request, customer_id):
     customer = get_object_or_404(Customer, pk=customer_id)
     appts = customer.get_future_appointments()
     results = []
     for appt in appts:
         results.append(serialize_appointment(appt))
     response = format_json_response(results)
-    return JsonResponse(response)
+    return Response(response)
 
-# TODO search salons, services, providers
+
+# LEGACY
+# vvvvvv
+
+@api_view(['GET'])
+def nearest_salons(request):
+    return redirect(reverse('salons') + '?' + request.GET.urlencode())
+
+
+@api_view(['GET'])
+def services_for_salon(request, salon_id):
+    return redirect(reverse('services') + '?' +
+                    urllib.parse.urlencode({'salon_id': salon_id}))
+
+
+@api_view(['GET'])
+def providers_for_salon(request, salon_id):
+    return redirect(reverse('providers') + '?' +
+                    urllib.parse.urlencode({'salon_id': salon_id}))
+
+
+@api_view(['GET'])
+def all_salons_for_service(request, service_id):
+    return redirect(reverse('salons') + '?' +
+                    urllib.parse.urlencode({'service_id': service_id}))
+
+
+@api_view(['GET'])
+def providers_for_service(request, service_id):
+    return redirect(reverse('providers') + '?' +
+                    urllib.parse.urlencode({'service_id': service_id}))
