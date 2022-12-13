@@ -198,7 +198,7 @@ def by_salon(update: Update, context: CallbackContext):
 
     all_salons = response.json()['data']
     message_text = bot_strings.by_salon_menu
-    keyboard = [[InlineKeyboardButton(bot_strings.nearest_salon, callback_data='new_appointment')]]
+    keyboard = []
     for salon in all_salons:
 
         keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'salon{salon["pk"]}')])
