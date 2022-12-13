@@ -40,7 +40,7 @@ params = {
 response = requests.get(url, params)
 ```
 
-### Choosing salon and datetime for appointment: 
+### Choosing a salon, service, provider, date, and time slot for appointment: 
 
 #### Show salons
 ```
@@ -87,7 +87,6 @@ optional params:
                   customize it with this param
 ```
 
-
 ### Registering a customer
 ```
 type: POST
@@ -109,8 +108,14 @@ post data:
    provider_id: int
    service_id: int
 ```
-
-### Past and future appointments for customer
+### Showing an existing customer
+```
+type: GET
+path: /customer/
+query params:
+   telegram_id: int | str - find a registered customer by telegram id
+```
+### Past and future appointments for a customer
 ```
 /customer/<int:customer_id>/past
 /customer/<int:customer_id>/future
