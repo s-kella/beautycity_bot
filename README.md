@@ -111,7 +111,9 @@ post data:
 ### Showing an existing customer
 ```
 type: GET
-path: /customer/<int:customer_id>/
+path: /customer/
+query params:
+   telegram_id: int | str - find a registered customer by telegram id
 ```
 ### Past and future appointments for a customer
 ```
