@@ -86,6 +86,9 @@ def account_menu(update: Update, context: CallbackContext):
             InlineKeyboardButton(bot_strings.past_appointments, callback_data='past_ap'),
         ],
         [
+            InlineKeyboardButton(bot_strings.registration, callback_data='registration'),
+        ],
+        [
             InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
         ],
     ]
@@ -174,7 +177,6 @@ def by_salon(update: Update, context: CallbackContext):
     message_text = bot_strings.by_salon_menu
     keyboard = [[InlineKeyboardButton(bot_strings.nearest_salon, callback_data='new_appointment')]]
     for salon in all_salons:
-        print(f'salon_{salon["pk"]}')
         keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'salon{salon["pk"]}')])
     keyboard.append(
         [InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
@@ -208,7 +210,7 @@ def by_master(update: Update, context: CallbackContext):
 
 
 def by_service(update: Update, context: CallbackContext):
-    # context.chat_data['service']
+    context.chat_data['service'] = 1
     query = update.callback_query
     query.answer()
     url = f'http://127.0.0.1:8000/services'
@@ -260,7 +262,7 @@ def get_users_phone(update, context):
     query.answer()
     message_text = bot_strings.by_service_menu
     keyboard = [[
-        KeyboardButton(str('Предоставить номер телефона'), request_contact=True),
+        InlineKeyboardButton(str('Предоставить номер телефона'), request_contact=True),
     ], [
         InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
     ]]
@@ -276,21 +278,31 @@ def get_users_phone(update, context):
 
 # TODO сделать, чтобы новые кнопки не появлялись, пока пользователь не даст телефон
 def registration(update, context):
-    buttons = ['Политика обработки данных', 'Я даю согласие на обработку данных']
-    reply_markup = get_keyboard(buttons)
+    query = update.callback_query
+    query.answer()
+    message_text = bot_strings.registration
+    keyboard = [[
+        InlineKeyboardButton(bot_strings.policy, callback_data='policy'),
+    ], [
+        InlineKeyboardButton(bot_strings.policy_agree, callback_data='policy_agree')
+    ], [
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
+
     users_personal_data = {
         'first_name': update.message.from_user.first_name,
         'last_name': update.message.from_user.last_name
     }
-    update.message.reply_text(
-        text="Регистрация",
-        reply_markup=reply_markup,
-    )
 
 
 def send_file_policy(update, context):
+    query = update.callback_query
+    query.answer()
     context.bot.sendDocument(
-        chat_id=update.message.chat_id,
+        chat_id=update.effective_chat.id,
         document=open('file.pdf', 'rb'),
         caption='Политика обработки данных'
     )
@@ -384,6 +396,8 @@ class Command(BaseCommand):
         dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
         dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_ap$'))
         dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_ap$'))
+        dispatcher.add_handler(CallbackQueryHandler(registration, pattern=r'^registration$'))
+        dispatcher.add_handler(CallbackQueryHandler(send_file_policy, pattern=r'^policy$'))
 
         dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
 
