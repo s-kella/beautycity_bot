@@ -6,6 +6,7 @@ from django.core import serializers
 from django.forms.models import model_to_dict
 from django.shortcuts import get_object_or_404, redirect, reverse
 from rest_framework.decorators import api_view
+from rest_framework.exceptions import APIException
 from rest_framework.response import Response
 
 from .models import Appointment, Customer, Provider, Salon, Service
@@ -97,6 +98,16 @@ def all_providers(request):
         service = get_object_or_404(Service, pk=query['service_id'])
         providers = providers.filter(service=service)
     return queryset_as_json_response(providers, ['first_name', 'last_name'])
+
+
+@api_view(['GET'])
+def show_customer(request):
+    query = request.GET.dict()
+    if 'telegram_id' not in query:
+        raise APIException
+    customer = get_object_or_404(Customer, telegram_id=query['telegram_id'])
+    return Response(format_json_response(serialize_customer(customer)))
+
 
 
 @api_view(['GET'])
