@@ -181,55 +181,43 @@ def by_salon_menu(update: Update, context: CallbackContext):
     query.message.delete()
 
 
-def by_master(update, context):
+def by_master(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
-
+    url = f'http://127.0.0.1:8000/providers'
+    response = requests.get(url)
     try:
-        masters = [{'id': 1,
-                    'name': 'Мастер 1'},
-                   {'id': 2,
-                    'name': 'Мастер 2'}]
-    except django.db.Error:
+        masters = response.json()['data']
+    except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
     message_text = bot_strings.by_master_menu
-    keyboard = [
-        [
-            InlineKeyboardButton(master['name'], callback_data=f'master{master["id"]}'),
-        ] for master in masters
-    ]
-    keyboard.append([
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-    ])
+    keyboard = []
+    for master in masters:
+        keyboard.append([InlineKeyboardButton(master['first_name'], callback_data=f'master{master["pk"]}')])
+    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
 
 
-def by_service(update, context):
+def by_service(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
-
+    url = f'http://127.0.0.1:8000/services'
+    response = requests.get(url)
     try:
-        services = [{'id': 1,
-                    'name': 'Услуга 1'},
-                   {'id': 2,
-                    'name': 'Услуга 2'}]
-    except django.db.Error:
+        services = response.json()['data']
+    except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
     message_text = bot_strings.by_service_menu
-    keyboard = [
-        [
-            InlineKeyboardButton(service['name'], callback_data=f'service{service["id"]}'),
-        ] for service in services
-    ]
-    keyboard.append([
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-    ])
+    keyboard = []
+    for service in services:
+        keyboard.append([InlineKeyboardButton(services['name'], callback_data=f'service{service["pk"]}')])
+    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
