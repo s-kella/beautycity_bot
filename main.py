@@ -97,12 +97,31 @@ def account_menu(update: Update, context: CallbackContext):
 def my_appointments(update, context):
     query = update.callback_query
     query.answer()
-    message_text = bot_strings.my_appointments
-    keyboard = [
-        [
-            InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-        ],
-    ]
+    # try:
+    #     url = f'http://127.0.0.1:8000/customer/'
+    #     params = {'telegram_id': update.effective_user.id}
+    #     response = requests.get(url, params=params)
+    #     response.raise_for_status()
+    # except requests.HTTPError:
+    #     update.effective_chat.send_message(bot_strings.db_error_message)
+    #     return main_menu(update, context)
+    # customer_id = response.json()['data']['pk']
+
+    try:
+        # url = f'http://127.0.0.1:8000/customer/{customer_id}/future'
+        url = f'http://127.0.0.1:8000/customer/1/future'
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.HTTPError:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    appointments = response.json()['data']
+    future_appointments_text = ''
+    for app in appointments:
+        future_appointments_text += (app['datetime'] + ' ' + app['service'] + ' ' + app['salon'] + '\n')
+    message_text = bot_strings.past_appointments + '\n' + future_appointments_text
+    keyboard = [[InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
@@ -111,25 +130,31 @@ def my_appointments(update, context):
 def past_appointments(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
+    # try:
+    #     url = f'http://127.0.0.1:8000/customer/'
+    #     params = {'telegram_id': update.effective_user.id}
+    #     response = requests.get(url, params=params)
+    #     response.raise_for_status()
+    # except requests.HTTPError:
+    #     update.effective_chat.send_message(bot_strings.db_error_message)
+    #     return main_menu(update, context)
+    # customer_id = response.json()['data']['pk']
 
     try:
-        appointments = [{'id': 1,
-                         'name': 'Запись 1'},
-                        {'id': 2,
-                         'name': 'Запись 2'}]
-    except django.db.Error:
+        # url = f'http://127.0.0.1:8000/customer/{customer_id}/past'
+        url = f'http://127.0.0.1:8000/customer/1/past'
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
-    message_text = bot_strings.past_appointments
-    keyboard = [
-        [
-            InlineKeyboardButton(app['name'], callback_data=f'app{app["id"]}'),
-        ] for app in appointments
-    ]
-    keyboard.append([
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-    ])
+    appointments = response.json()['data']
+    past_appointments_text = ''
+    for app in appointments:
+        past_appointments_text += (app['datetime'] + ' ' + app['service'] + ' ' + app['salon'] + '\n')
+    message_text = bot_strings.past_appointments + '\n' + past_appointments_text
+    keyboard = [[InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')]]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
@@ -175,7 +200,6 @@ def by_salon(update: Update, context: CallbackContext):
     message_text = bot_strings.by_salon_menu
     keyboard = [[InlineKeyboardButton(bot_strings.nearest_salon, callback_data='new_appointment')]]
     for salon in all_salons:
-        print(f'salon_{salon["pk"]}')
         keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'salon{salon["pk"]}')])
     keyboard.append(
         [InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
