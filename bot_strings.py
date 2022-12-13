@@ -3,11 +3,14 @@ main_menu = ('Главное меню. Выберете новую запись 
 account_menu_button = 'Личный кабинет'
 new_appointment_button = 'Новая запись'
 back_button = 'Обратно в меню'
+back_to_new_appointment_button = 'Обратно в новую запись'
 account_menu = 'Личный кабинет. Просмотрите...'
 new_appointment = 'Новая запись. Запишитесь...'
 by_salon = 'Выбор по салону'
 by_master = 'Выбор по мастеру'
 by_service = 'Выбор по услуге'
+
 by_salon_menu = 'Меню выбора по салону'
+nearest_salon = 'Ближайший салон'
 
 db_error_message = 'При выполнении запроса произошла ошибка. Пожалуйста, повторите операцию позже.'

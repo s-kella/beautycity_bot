@@ -1,7 +1,9 @@
 import os
+
 from dotenv import load_dotenv
 import logging
 import django.db
+import requests
 
 # from salons.models import Weekday, Salon, Provider, ProviderSchedule, Service, Customer, Appointment
 from django.core.management.base import BaseCommand
@@ -134,23 +136,20 @@ def new_appointment(update: Update, context: CallbackContext):
 def by_salon_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
-
+    url = f'http://127.0.0.1:8000/salons'
+    response = requests.get(url)
     try:
-        all_salons = [{'id': 1,
-                       'name': 'Ближайший по геопозиции'},
-                      {'id': 2,
-                       'name': 'Салон 1'},
-                      {'id': 3,
-                       'name': 'Салон 2'}]
-    except django.db.Error:
+        all_salons = response.json()['data']
+    except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
     message_text = bot_strings.by_salon_menu
     keyboard = []
+    keyboard.append([InlineKeyboardButton(bot_strings.nearest_salon, callback_data='new_appointment')])
     for salon in all_salons:
-        keyboard.append([InlineKeyboardButton(salon.name, callback_data=f'show_by_salon_{salon.id}')])
-    keyboard.append([InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')])
+        keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'show_by_salon_{salon["pk"]}')])
+    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
