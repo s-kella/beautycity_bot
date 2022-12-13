@@ -22,7 +22,7 @@ from telegram.ext import (
 )
 import bot_strings
 
-SALON, MASTER, SERVICE = range(3)
+SALON, MASTER, SERVICE, DATE = range(4)
 
 
 def update_request_query_params(query, context: CallbackContext):
@@ -99,6 +99,9 @@ def account_menu(update: Update, context: CallbackContext):
         ],
         [
             InlineKeyboardButton(bot_strings.past_appointments, callback_data='past_ap'),
+        ],
+        [
+            InlineKeyboardButton(bot_strings.registration, callback_data='registration'),
         ],
         [
             InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
@@ -188,6 +191,7 @@ def by_salon(update: Update, context: CallbackContext):
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
+
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
@@ -196,7 +200,7 @@ def by_salon(update: Update, context: CallbackContext):
     message_text = bot_strings.by_salon_menu
     keyboard = [[InlineKeyboardButton(bot_strings.nearest_salon, callback_data='new_appointment')]]
     for salon in all_salons:
-        print(f'salon_{salon["pk"] =}')
+
         keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'salon{salon["pk"]}')])
     keyboard.append(
         [InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
@@ -218,6 +222,7 @@ def by_master(update: Update, context: CallbackContext):
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
+
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
@@ -235,16 +240,19 @@ def by_master(update: Update, context: CallbackContext):
 
 
 def by_service(update: Update, context: CallbackContext):
+    context.chat_data['service'] = 1
     query = update.callback_query
     query.answer()
-
     update_request_query_params(query, context)
+
     url = f'http://127.0.0.1:8000/services'
     params = context.chat_data
 
     try:
+
         response = requests.get(url, params=params)
         response.raise_for_status()
+
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
@@ -261,12 +269,36 @@ def by_service(update: Update, context: CallbackContext):
     return SERVICE
 
 
+def by_date(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+    salon_id = 1
+    url = f'http://127.0.0.1:8000/salon/{salon_id}/available_appointments'
+    response = requests.get(url)
+
+    try:
+        dates = response.json()['data']
+    except requests.HTTPError:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    message_text = bot_strings.date_menu
+    keyboard = []
+    for date in dates:
+        keyboard.append([InlineKeyboardButton(date['name'], callback_data=f'service{date["pk"]}')])
+    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
+    return DATE
+
+
 def get_users_phone(update, context):
     query = update.callback_query
     query.answer()
     message_text = bot_strings.by_service_menu
     keyboard = [[
-        KeyboardButton(str('Предоставить номер телефона'), request_contact=True),
+        InlineKeyboardButton(str('Предоставить номер телефона'), request_contact=True),
     ], [
         InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
     ]]
@@ -282,22 +314,31 @@ def get_users_phone(update, context):
 
 # TODO сделать, чтобы новые кнопки не появлялись, пока пользователь не даст телефон
 def registration(update, context):
-    buttons = ['Политика обработки данных', 'Я даю согласие на обработку данных']
-    reply_markup = get_keyboard(buttons)
+    query = update.callback_query
+    query.answer()
+    message_text = bot_strings.registration
+    keyboard = [[
+        InlineKeyboardButton(bot_strings.policy, callback_data='policy'),
+    ], [
+        InlineKeyboardButton(bot_strings.policy_agree, callback_data='policy_agree')
+    ], [
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
+
     users_personal_data = {
         'first_name': update.message.from_user.first_name,
-        'last_name': update.message.from_user.last_name,
-        # 'phone_number': get_users_phone(update, context)
+        'last_name': update.message.from_user.last_name
     }
-    update.message.reply_text(
-        text="Регистрация",
-        reply_markup=reply_markup,
-    )
 
 
 def send_file_policy(update, context):
+    query = update.callback_query
+    query.answer()
     context.bot.sendDocument(
-        chat_id=update.message.chat_id,
+        chat_id=update.effective_chat.id,
         document=open('file.pdf', 'rb'),
         caption='Политика обработки данных'
     )
@@ -315,6 +356,94 @@ def confirm_appointment(update, context):
 def help_message(update: Update, context: CallbackContext):
     """Send help text"""
     update.effective_chat.send_message('TEXT: HELP')
+
+
+class Command(BaseCommand):
+    help = 'Запуск чат-бота'
+
+    def handle(self, *args, **options):
+        logging.basicConfig(
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            level=logging.INFO
+        )
+        logger = logging.getLogger(__name__)
+
+        load_dotenv()
+        bot_token = os.getenv('TG_BOT_TOKEN')
+
+        updater = Updater(token=bot_token, use_context=True)
+        dispatcher = updater.dispatcher
+
+        conversation_handler = ConversationHandler(
+            entry_points=[
+                CommandHandler('start', start),
+            ],
+            states={
+            },
+            fallbacks=[
+                CommandHandler('start', start),
+                MessageHandler(Filters.text, help_message),
+            ]
+        )
+
+        conversation_handler_master = ConversationHandler(
+            entry_points=[
+                CallbackQueryHandler(by_master, pattern=r'^by_master$'),
+            ],
+            states={
+                MASTER: [CallbackQueryHandler(by_service, pattern=r'^master\d$')],
+                SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
+                SALON: [CallbackQueryHandler(by_date, pattern=r'^salon\d$')]
+            },
+            fallbacks=[
+                CallbackQueryHandler(by_master, pattern=r'^by_master$')
+            ]
+        )
+
+        conversation_handler_salon = ConversationHandler(
+            entry_points=[
+                CallbackQueryHandler(by_salon, pattern=r'^by_salon$'),
+            ],
+            states={
+                SALON: [CallbackQueryHandler(by_service, pattern=r'^salon\d$')],
+                SERVICE: [CallbackQueryHandler(by_master, pattern=r'^service\d$')],
+                MASTER: [CallbackQueryHandler(by_date, pattern=r'^master\d$')]
+            },
+            fallbacks=[
+                CallbackQueryHandler(by_salon, pattern=r'^by_salon$')
+            ]
+        )
+
+        conversation_handler_service = ConversationHandler(
+            entry_points=[
+                CallbackQueryHandler(by_service, pattern=r'^by_service$'),
+            ],
+            states={
+                SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
+                SALON: [CallbackQueryHandler(by_master, pattern=r'^salon\d$')],
+                MASTER: [CallbackQueryHandler(by_date, pattern=r'^master\d$')]
+            },
+            fallbacks=[
+                CallbackQueryHandler(by_salon, pattern=r'^by_service$')
+            ]
+        )
+
+        dispatcher.add_handler(CallbackQueryHandler(account_menu, pattern=r'^account$'))
+        dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
+        dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_ap$'))
+        dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_ap$'))
+        dispatcher.add_handler(CallbackQueryHandler(registration, pattern=r'^registration$'))
+        dispatcher.add_handler(CallbackQueryHandler(send_file_policy, pattern=r'^policy$'))
+
+        dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
+
+        dispatcher.add_handler(conversation_handler)
+        dispatcher.add_handler(conversation_handler_master)
+        dispatcher.add_handler(conversation_handler_salon)
+        dispatcher.add_handler(conversation_handler_service)
+
+        updater.start_polling()
+        updater.idle()
 
 
 def main():
@@ -395,6 +524,7 @@ def main():
 
     updater.start_polling()
     updater.idle()
+
 
 
 if __name__ == '__main__':
