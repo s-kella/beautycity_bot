@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 import logging
 import django.db
+import requests
 
 # from salons.models import Weekday, Salon, Provider, ProviderSchedule, Service, Customer, Appointment
 from django.core.management.base import BaseCommand
@@ -20,6 +21,8 @@ from telegram.ext import (
     PreCheckoutQueryHandler,
 )
 import bot_strings
+
+SALON, MASTER, SERVICE = range(3)
 
 
 def set_keyboards_buttons(buttons):
@@ -157,91 +160,96 @@ def new_appointment(update: Update, context: CallbackContext):
     query.message.delete()
 
 
-def by_salon_menu(update: Update, context: CallbackContext):
+def by_salon(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
-
     try:
-        all_salons = [{'id': 1,
-                       'name': 'По геопозиции'},
-                      {'id': 2,
-                       'name': 'Салон 1'},
-                      {'id': 3,
-                       'name': 'Салон 2'}]
-    except django.db.Error:
+        url = f'http://127.0.0.1:8000/salons'
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
+    all_salons = response.json()['data']
     message_text = bot_strings.by_salon_menu
-    keyboard = []
+    keyboard = [[InlineKeyboardButton(bot_strings.nearest_salon, callback_data='new_appointment')]]
     for salon in all_salons:
-        keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'show_by_salon_{salon["id"]}')])
-    keyboard.append([InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')])
+        print(f'salon_{salon["pk"]}')
+        keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'salon{salon["pk"]}')])
+    keyboard.append(
+        [InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
+    return SALON
 
 
-def by_master(update, context):
+def by_master(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
-
     try:
-        masters = [{'id': 1,
-                    'name': 'Мастер 1'},
-                   {'id': 2,
-                    'name': 'Мастер 2'}]
-    except django.db.Error:
+        url = f'http://127.0.0.1:8000/providers'
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
+    masters = response.json()['data']
     message_text = bot_strings.by_master_menu
-    keyboard = [
-        [
-            InlineKeyboardButton(master['name'], callback_data=f'master{master["id"]}'),
-        ] for master in masters
-    ]
-    keyboard.append([
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-    ])
+    keyboard = []
+    for master in masters:
+        keyboard.append([InlineKeyboardButton(master['first_name'], callback_data=f'master{master["pk"]}')])
+    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
+    return MASTER
 
 
-def by_service(update, context):
+def by_service(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
     try:
-        services = [{'id': 1,
-                    'name': 'Услуга 1'},
-                   {'id': 2,
-                    'name': 'Услуга 2'}]
-    except django.db.Error:
+        url = f'http://127.0.0.1:8000/services'
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
+    services = response.json()['data']
     message_text = bot_strings.by_service_menu
-    keyboard = [
-        [
-            InlineKeyboardButton(service['name'], callback_data=f'service{service["id"]}'),
-        ] for service in services
-    ]
-    keyboard.append([
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-    ])
+    keyboard = []
+    for service in services:
+        keyboard.append([InlineKeyboardButton(service['name'], callback_data=f'service{service["pk"]}')])
+    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
+    return SERVICE
 
 
 def get_users_phone(update, context):
-    reply_markup = ReplyKeyboardMarkup([[KeyboardButton(str('Предоставить номер телефона'), request_contact=True)]],
-                                       resize_keyboard=True)
-    message = 'Предоставьте свой номер телефона'
-    context.bot.sendMessage(update.effective_chat.id, message, reply_markup=reply_markup)
+    query = update.callback_query
+    query.answer()
+    message_text = bot_strings.by_service_menu
+    keyboard = [[
+        KeyboardButton(str('Предоставить номер телефона'), request_contact=True),
+    ], [
+        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+    ]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
+
+    # reply_markup = ReplyKeyboardMarkup([[KeyboardButton(str('Предоставить номер телефона'), request_contact=True)]],
+    #                                    resize_keyboard=True)
+    # message = 'Предоставьте свой номер телефона'
+    # context.bot.sendMessage(update.effective_chat.id, message, reply_markup=reply_markup)
 
 
 # TODO сделать, чтобы новые кнопки не появлялись, пока пользователь не даст телефон
@@ -274,38 +282,6 @@ def confirm_appointment(update, context):
         text="Ваша запись:\n[дата]\n[услуга]\n[мастер]\n[салон]",
         reply_markup=reply_markup,
     )
-
-
-# def message_handler(update, context):
-#     text = update.message.text
-#
-#     if text == 'Назад':
-#         menu(update, context)
-#
-#     if text == 'Личный кабинет':
-#         lk(update, context)
-#
-#     if text == 'Мои записи':
-#         my_appointments(update, context)
-#
-#     if text == 'Прошлые записи':
-#         past_appointments(update, context)
-#
-#     if text == 'Записаться':
-#         new_appointment(update, context)
-#
-#     # TODO организовать очерёдность салон/услуга/мастер в зависимости от выбранного варианта
-#     if text == 'По салону':
-#         by_salon(update, context)
-#
-#     if text == 'По  услуге':
-#         by_service(update, context)
-#
-#     if text == 'По мастеру':
-#         by_master(update, context)
-#
-#     if text == 'Политика обработки данных':
-#         send_file_policy(update, context)
 
 
 def help_message(update: Update, context: CallbackContext):
@@ -341,17 +317,56 @@ class Command(BaseCommand):
             ]
         )
 
+        conversation_handler_master = ConversationHandler(
+            entry_points=[
+                CallbackQueryHandler(by_master, pattern=r'^by_master$'),
+            ],
+            states={
+                MASTER: [CallbackQueryHandler(by_service, pattern=r'^master\d$')],
+                SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')]
+            },
+            fallbacks=[
+                CallbackQueryHandler(by_master, pattern=r'^by_master$')
+            ]
+        )
+
+        conversation_handler_salon = ConversationHandler(
+            entry_points=[
+                CallbackQueryHandler(by_salon, pattern=r'^by_salon$'),
+            ],
+            states={
+                SALON: [CallbackQueryHandler(by_service, pattern=r'^salon\d$')],
+                SERVICE: [CallbackQueryHandler(by_master, pattern=r'^service\d$')]
+            },
+            fallbacks=[
+                CallbackQueryHandler(by_salon, pattern=r'^by_salon$')
+            ]
+        )
+
+        conversation_handler_service = ConversationHandler(
+            entry_points=[
+                CallbackQueryHandler(by_service, pattern=r'^by_service$'),
+            ],
+            states={
+                SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
+                SALON: [CallbackQueryHandler(by_master, pattern=r'^salon\d$')]
+            },
+            fallbacks=[
+                CallbackQueryHandler(by_salon, pattern=r'^by_service$')
+            ]
+        )
+
         dispatcher.add_handler(CallbackQueryHandler(account_menu, pattern=r'^account$'))
         dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
         dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_ap$'))
         dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_ap$'))
-        dispatcher.add_handler(CallbackQueryHandler(by_salon_menu, pattern=r'^by_salon$'))
-        dispatcher.add_handler(CallbackQueryHandler(by_master, pattern=r'^by_master$'))
-        dispatcher.add_handler(CallbackQueryHandler(by_service, pattern=r'^by_service$'))
 
         dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
 
         dispatcher.add_handler(conversation_handler)
+        dispatcher.add_handler(conversation_handler_master)
+        dispatcher.add_handler(conversation_handler_salon)
+        dispatcher.add_handler(conversation_handler_service)
 
         updater.start_polling()
         updater.idle()
