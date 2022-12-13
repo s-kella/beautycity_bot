@@ -37,7 +37,7 @@ def update_request_query_params(query, context: CallbackContext):
     if 'salon' in selection:
         context.chat_data['salon_id'] = selection.replace('salon', '')
 
-    print(f'{context.chat_data =}')
+    print(context.chat_data)
 
 
 def set_keyboards_buttons(buttons):
@@ -355,7 +355,7 @@ def appointment_is_confirmed(update, context):
 def confirm_appointment(update, context):
     query = update.callback_query
     query.answer()
-    message_text = "Ваша запись:\n[дата]\n[услуга]\n[мастер]\n[салон]"
+    message_text = f'Ваша запись:\n[дата]\nУслуга: {context.chat_data["service_id"]}\nМастер: {context.chat_data["provider_id"]}\nСалон: '
     keyboard = [[
         InlineKeyboardButton(bot_strings.confirm, callback_data='confirm'),
     ], [
@@ -443,6 +443,8 @@ def main():
     dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
     dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_ap$'))
     dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_ap$'))
+    dispatcher.add_handler(CallbackQueryHandler(registration, pattern=r'^registration$'))
+    dispatcher.add_handler(CallbackQueryHandler(send_file_policy, pattern=r'^policy$'))
 
     dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
 
