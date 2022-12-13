@@ -11,6 +11,10 @@ by_master = 'Выбор по мастеру'
 by_service = 'Выбор по услуге'
 
 by_salon_menu = 'Меню выбора по салону'
+by_master_menu = 'Меню выбора по мастеру'
+by_service_menu = 'Меню выбора по услуге'
+past_appointments = 'Прошлые записи'
+my_appointments = 'Мои записи'
 nearest_salon = 'Ближайший салон'
 
 db_error_message = 'При выполнении запроса произошла ошибка. Пожалуйста, повторите операцию позже.'
