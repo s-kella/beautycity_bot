@@ -22,7 +22,7 @@ from telegram.ext import (
 )
 import bot_strings
 
-SALON, MASTER, SERVICE = range(3)
+SALON, MASTER, SERVICE, DATE = range(4)
 
 
 def set_keyboards_buttons(buttons):
@@ -163,10 +163,9 @@ def new_appointment(update: Update, context: CallbackContext):
 def by_salon(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
+    url = f'http://127.0.0.1:8000/salons'
+    response = requests.get(url)
     try:
-        url = f'http://127.0.0.1:8000/salons'
-        response = requests.get(url)
-        response.raise_for_status()
         all_salons = response.json()['data']
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
@@ -189,10 +188,9 @@ def by_salon(update: Update, context: CallbackContext):
 def by_master(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
+    url = f'http://127.0.0.1:8000/providers'
+    response = requests.get(url)
     try:
-        url = f'http://127.0.0.1:8000/providers'
-        response = requests.get(url)
-        response.raise_for_status()
         masters = response.json()['data']
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
@@ -210,16 +208,13 @@ def by_master(update: Update, context: CallbackContext):
 
 
 def by_service(update: Update, context: CallbackContext):
+    # context.chat_data['service']
     query = update.callback_query
     query.answer()
-
     url = f'http://127.0.0.1:8000/services'
     response = requests.get(url)
 
     try:
-        url = f'http://127.0.0.1:8000/services'
-        response = requests.get(url)
-        response.raise_for_status()
         services = response.json()['data']
     except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
@@ -234,6 +229,30 @@ def by_service(update: Update, context: CallbackContext):
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
     return SERVICE
+
+
+def by_date(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+    salon_id = 1
+    url = f'http://127.0.0.1:8000/salon/{salon_id}/available_appointments'
+    response = requests.get(url)
+
+    try:
+        dates = response.json()['data']
+    except requests.HTTPError:
+        update.effective_chat.send_message(bot_strings.db_error_message)
+        return main_menu(update, context)
+
+    message_text = bot_strings.date_menu
+    keyboard = []
+    for date in dates:
+        keyboard.append([InlineKeyboardButton(date['name'], callback_data=f'service{date["pk"]}')])
+    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+    query.message.delete()
+    return DATE
 
 
 def get_users_phone(update, context):
@@ -261,8 +280,7 @@ def registration(update, context):
     reply_markup = get_keyboard(buttons)
     users_personal_data = {
         'first_name': update.message.from_user.first_name,
-        'last_name': update.message.from_user.last_name,
-        # 'phone_number': get_users_phone(update, context)
+        'last_name': update.message.from_user.last_name
     }
     update.message.reply_text(
         text="Регистрация",
@@ -326,7 +344,8 @@ class Command(BaseCommand):
             ],
             states={
                 MASTER: [CallbackQueryHandler(by_service, pattern=r'^master\d$')],
-                SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')]
+                SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
+                SALON: [CallbackQueryHandler(by_date, pattern=r'^salon\d$')]
             },
             fallbacks=[
                 CallbackQueryHandler(by_master, pattern=r'^by_master$')
@@ -339,7 +358,8 @@ class Command(BaseCommand):
             ],
             states={
                 SALON: [CallbackQueryHandler(by_service, pattern=r'^salon\d$')],
-                SERVICE: [CallbackQueryHandler(by_master, pattern=r'^service\d$')]
+                SERVICE: [CallbackQueryHandler(by_master, pattern=r'^service\d$')],
+                MASTER: [CallbackQueryHandler(by_date, pattern=r'^master\d$')]
             },
             fallbacks=[
                 CallbackQueryHandler(by_salon, pattern=r'^by_salon$')
@@ -352,7 +372,8 @@ class Command(BaseCommand):
             ],
             states={
                 SERVICE: [CallbackQueryHandler(by_salon, pattern=r'^service\d$')],
-                SALON: [CallbackQueryHandler(by_master, pattern=r'^salon\d$')]
+                SALON: [CallbackQueryHandler(by_master, pattern=r'^salon\d$')],
+                MASTER: [CallbackQueryHandler(by_date, pattern=r'^master\d$')]
             },
             fallbacks=[
                 CallbackQueryHandler(by_salon, pattern=r'^by_service$')
