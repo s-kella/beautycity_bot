@@ -21,7 +21,9 @@ class ConversationState(IntEnum):
     SALON = auto()
     PROVIDER = auto()
     SERVICE = auto()
+    WEEK = auto()
     DATE = auto()
+    HOUR = auto()
     CONFIRM_APPT = auto()
 
 

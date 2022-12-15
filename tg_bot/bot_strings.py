@@ -1,14 +1,20 @@
-# Messages
+# Main menu
 welcome_msg = 'Привет! Добро пожаловать в бот BeautyCity!'
-main_menu_msg = ('Главное меню. Выберете новую запись или зайдите в личный кабинет, '
-                 'чтобы просмотреть ваши прошлые записи.')
+main_menu_msg = ('Главное меню. Запишитесь на услугу или зайдите в личный кабинет, '
+                 'чтобы просмотреть существующие записи.')
 account_menu_msg = 'Личный кабинет'
 new_appointment_msg = 'Новая запись'
 
+# New appointment
 choose_salon_menu = 'Меню выбора по салону'
 choose_provider_menu = 'Меню выбора по мастеру'
 choose_service_menu = 'Меню выбора по услуге'
-date_menu = 'Меню выбора даты'
+week_menu = ('У нас есть расписание вашего мастера на следующие 4 недели. '
+             'На какую неделю вы хотели бы записаться?')
+date_menu = 'На выбранной неделе ваш мастер доступен в следующие дни:'
+nearest_salon = 'Ближайший салон'
+confirm_appt = 'Подтвердить запись'
+appt_confirmed_msg = 'Ваша запись подтверждена'
 
 
 # Registration
@@ -21,20 +27,12 @@ request_name_msg = 'Пришлите мне свои имя и фамилию.'
 registration_successful = ('Спасибо за регистрацию! '
                            'Вы можете продолжить то, что делали выше, или перейти в главное меню.')
 
-db_error_message = 'При выполнении запроса произошла ошибка. Пожалуйста, повторите операцию позже.'
-
+# Account
 future_appointments = 'Текущие записи'
 past_appointments = 'Прошлые записи'
 no_appointments = 'Нет записей.'
-phone_request = 'Предоставьте свой номер телефона'
-nearest_salon = 'Ближайший салон'
 
-confirm_appt = 'Подтвердить запись'
-
-appt_confirmed_msg = 'Ваша запись подтверждена'
-
-
-# Button texts
+# Button labels
 new_appt = 'Новая запись'
 back_to_new_appt = 'Начать сначала'
 account_menu = 'Личный кабинет'
@@ -47,3 +45,11 @@ change = 'Изменить'
 choose_salon = 'Выбор по салону'
 choose_provider = 'Выбор по мастеру'
 choose_service = 'Выбор по услуге'
+this_week = 'Эта неделя'
+next_week = 'Следующая неделя'
+week_after_2 = 'Через 2 недели'
+week_after_3 = 'Через 3 недели'
+back_to_week = 'Назад к выбору недели'
+
+# Errors
+db_error_message = 'При выполнении запроса произошла ошибка. Пожалуйста, повторите операцию позже.'
