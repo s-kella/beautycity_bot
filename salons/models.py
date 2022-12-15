@@ -214,7 +214,8 @@ class Customer(models.Model):
     def __str__(self):
         return f'{self.first_name} {self.last_name}'
 
-    def get_past_appointments(self):
+    # TODO only last 6 months of appts
+    def get_past_appointments(self, window_months=6):
         return Appointment.objects.filter(customer=self, datetime__lt=timezone.now())
 
     def get_future_appointments(self):
