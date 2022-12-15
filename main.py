@@ -1,11 +1,8 @@
 import os
 from dotenv import load_dotenv
 import logging
-import django.db
 import requests
 
-# from salons.models import Weekday, Salon, Provider, ProviderSchedule, Service, Customer, Appointment
-from django.core.management.base import BaseCommand
 from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, LabeledPrice
 from telegram import PreCheckoutQuery
@@ -58,11 +55,9 @@ def get_keyboard(buttons, one_time_keyboard=False):
 
 
 def start(update, context):
-    user = update.message.from_user
     update.message.reply_text(
         text=f'Привет! Добро пожаловать в бот BeautyCity!')
     main_menu(update, context)
-    # registration(update, context)
 
 
 def main_menu(update: Update, context: CallbackContext):
@@ -92,13 +87,16 @@ def account_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
+    user_id = update.effective_user.id
+    # TODO grab and store customer id from DB, if not exists register
+
     message_text = bot_strings.account_menu
     keyboard = [
         [
-            InlineKeyboardButton(bot_strings.my_appointments, callback_data='my_ap'),
+            InlineKeyboardButton(bot_strings.my_appointments, callback_data='my_appts'),
         ],
         [
-            InlineKeyboardButton(bot_strings.past_appointments, callback_data='past_ap'),
+            InlineKeyboardButton(bot_strings.past_appointments, callback_data='past_appts'),
         ],
         [
             InlineKeyboardButton(bot_strings.registration, callback_data='registration'),
@@ -135,7 +133,7 @@ def past_appointments(update: Update, context: CallbackContext):
                          'name': 'Запись 1'},
                         {'id': 2,
                          'name': 'Запись 2'}]
-    except django.db.Error:
+    except requests.HTTPError:
         update.effective_chat.send_message(bot_strings.db_error_message)
         return main_menu(update, context)
 
@@ -276,6 +274,7 @@ def choose_date(update: Update, context: CallbackContext):
     url = f'http://127.0.0.1:8000/salon/{salon_id}/available_appointments'
     response = requests.get(url)
 
+    # FIXME
     try:
         dates = response.json()['data']
     except requests.HTTPError:
@@ -441,8 +440,8 @@ def main():
 
     dispatcher.add_handler(CallbackQueryHandler(account_menu, pattern=r'^account$'))
     dispatcher.add_handler(CallbackQueryHandler(new_appointment, pattern=r'^new_appointment$'))
-    dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_ap$'))
-    dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_ap$'))
+    dispatcher.add_handler(CallbackQueryHandler(past_appointments, pattern=r'^past_appts$'))
+    dispatcher.add_handler(CallbackQueryHandler(my_appointments, pattern=r'^my_appts$'))
 
     dispatcher.add_handler(CallbackQueryHandler(main_menu, pattern=r'^main_menu$|^back_to_main$'))
 
