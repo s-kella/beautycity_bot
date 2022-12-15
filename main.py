@@ -17,8 +17,9 @@ from telegram.ext import (
     Updater,
     PreCheckoutQueryHandler,
 )
-import bot_strings
+import bot_constants
 
+# Conversation states
 SALON, MASTER, SERVICE, DATE, CONFIRM = range(5)
 
 
@@ -37,26 +38,19 @@ def update_request_query_params(query, context: CallbackContext):
     print(f'{context.chat_data =}')
 
 
-def set_keyboards_buttons(buttons):
-    keyboard = []
-    for button in buttons:
-        keyboard.append(KeyboardButton(button))
-    return keyboard
+def clear_query_filters(context: CallbackContext):
+    context.chat_data['provider_id'] = None
+    context.chat_data['service_id'] = None
+    context.chat_data['salon_id'] = None
 
-
-def get_keyboard(buttons, one_time_keyboard=False):
-    reply_markup = ReplyKeyboardMarkup(
-        keyboard=[set_keyboards_buttons(buttons)],
-        resize_keyboard=True,
-        one_time_keyboard=one_time_keyboard,
-    )
-
-    return reply_markup
+    # TODO check needed?
+    context.chat_data['lat'] = None
+    context.chat_data['lon'] = None
 
 
 def start(update, context):
     update.message.reply_text(
-        text=f'Привет! Добро пожаловать в бот BeautyCity!')
+        text=bot_constants.welcome_msg)
     main_menu(update, context)
 
 
@@ -65,15 +59,11 @@ def main_menu(update: Update, context: CallbackContext):
     if query:
         query.answer()
 
-    message_text = bot_strings.main_menu
+    message_text = bot_constants.main_menu
 
     keyboard = [
-        [
-            InlineKeyboardButton(bot_strings.new_appointment_button, callback_data='new_appointment'),
-        ],
-        [
-            InlineKeyboardButton(bot_strings.account_menu_button, callback_data='account'),
-        ],
+        [bot_constants.new_appt_button],
+        [bot_constants.account_menu_button],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -87,23 +77,26 @@ def account_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
-    user_id = update.effective_user.id
-    # TODO grab and store customer id from DB, if not exists register
+    if 'customer_id' not in context.chat_data:
+        url = f'http://127.0.0.1:8000/customer'
+        params = {'telegram_id': update.effective_user.id}
+        try:
+            response = requests.get(url, params)
+        except requests.HTTPError:
+            update.effective_chat.send_message(bot_constants.db_error_message)
+            return main_menu(update, context)
+        if response.status_code == 404:
+            ...
+            # TODO registration branch
+        context.chat_data['customer_id'] = response.json()['data']['pk']
 
-    message_text = bot_strings.account_menu
+
+    message_text = bot_constants.account_menu_msg
     keyboard = [
-        [
-            InlineKeyboardButton(bot_strings.my_appointments, callback_data='my_appts'),
-        ],
-        [
-            InlineKeyboardButton(bot_strings.past_appointments, callback_data='past_appts'),
-        ],
-        [
-            InlineKeyboardButton(bot_strings.registration, callback_data='registration'),
-        ],
-        [
-            InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-        ],
+        [InlineKeyboardButton(bot_constants.my_appointments, callback_data='my_appts')],
+        [InlineKeyboardButton(bot_constants.past_appointments, callback_data='past_appts')],
+        [InlineKeyboardButton(bot_constants.registration, callback_data='registration')],
+        [bot_constants.back_to_main_button],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
@@ -113,11 +106,9 @@ def account_menu(update: Update, context: CallbackContext):
 def my_appointments(update, context):
     query = update.callback_query
     query.answer()
-    message_text = bot_strings.my_appointments
+    message_text = bot_constants.my_appointments
     keyboard = [
-        [
-            InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-        ],
+        [bot_constants.back_to_main_button],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
@@ -134,17 +125,15 @@ def past_appointments(update: Update, context: CallbackContext):
                         {'id': 2,
                          'name': 'Запись 2'}]
     except requests.HTTPError:
-        update.effective_chat.send_message(bot_strings.db_error_message)
+        update.effective_chat.send_message(bot_constants.db_error_message)
         return main_menu(update, context)
 
-    message_text = bot_strings.past_appointments
+    message_text = bot_constants.past_appointments
     keyboard = [
-        [
-            InlineKeyboardButton(app['name'], callback_data=f'app{app["id"]}'),
-        ] for app in appointments
+        [InlineKeyboardButton(app['name'], callback_data=f'app{app["id"]}')] for app in appointments
     ]
     keyboard.append([
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
+        bot_constants.back_to_main_button,
     ])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
@@ -155,22 +144,14 @@ def new_appointment(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
 
-    context.chat_data.clear()
+    clear_query_filters(context)
 
-    message_text = bot_strings.new_appointment
+    message_text = bot_constants.new_appointment_msg
     keyboard = [
-        [
-            InlineKeyboardButton(bot_strings.choose_salon, callback_data='choose_salon'),
-        ],
-        [
-            InlineKeyboardButton(bot_strings.choose_service, callback_data='choose_service'),
-        ],
-        [
-            InlineKeyboardButton(bot_strings.choose_provider, callback_data='choose_provider'),
-        ],
-        [
-            InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-        ],
+        [InlineKeyboardButton(bot_constants.choose_salon, callback_data='choose_salon')],
+        [InlineKeyboardButton(bot_constants.choose_service, callback_data='choose_service')],
+        [InlineKeyboardButton(bot_constants.choose_provider, callback_data='choose_provider')],
+        [bot_constants.back_to_main_button],
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -185,23 +166,20 @@ def choose_salon(update: Update, context: CallbackContext):
     update_request_query_params(query, context)
     url = f'http://127.0.0.1:8000/salons'
     params = context.chat_data
-
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
-
     except requests.HTTPError:
-        update.effective_chat.send_message(bot_strings.db_error_message)
+        update.effective_chat.send_message(bot_constants.db_error_message)
         return main_menu(update, context)
 
     all_salons = response.json()['data']
-    message_text = bot_strings.choose_salon_menu
+    message_text = bot_constants.choose_salon_menu
     keyboard = []
     for salon in all_salons:
-
         keyboard.append([InlineKeyboardButton(salon['name'], callback_data=f'salon{salon["pk"]}')])
     keyboard.append(
-        [InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
+        [bot_constants.back_to_new_appt_button])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
@@ -220,17 +198,16 @@ def choose_provider(update: Update, context: CallbackContext):
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
-
     except requests.HTTPError:
-        update.effective_chat.send_message(bot_strings.db_error_message)
+        update.effective_chat.send_message(bot_constants.db_error_message)
         return main_menu(update, context)
 
     providers = response.json()['data']
-    message_text = bot_strings.choose_provider_menu
+    message_text = bot_constants.choose_provider_menu
     keyboard = []
     for provider in providers:
         keyboard.append([InlineKeyboardButton(provider['first_name'], callback_data=f'provider{provider["pk"]}')])
-    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
+    keyboard.append([bot_constants.back_to_new_appt_button])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
@@ -238,29 +215,25 @@ def choose_provider(update: Update, context: CallbackContext):
 
 
 def choose_service(update: Update, context: CallbackContext):
-    context.chat_data['service'] = 1
     query = update.callback_query
     query.answer()
     update_request_query_params(query, context)
 
     url = f'http://127.0.0.1:8000/services'
     params = context.chat_data
-
     try:
-
         response = requests.get(url, params=params)
         response.raise_for_status()
-
     except requests.HTTPError:
-        update.effective_chat.send_message(bot_strings.db_error_message)
+        update.effective_chat.send_message(bot_constants.db_error_message)
         return main_menu(update, context)
 
     services = response.json()['data']
-    message_text = bot_strings.choose_service_menu
+    message_text = bot_constants.choose_service_menu
     keyboard = []
     for service in services:
         keyboard.append([InlineKeyboardButton(service['name'], callback_data=f'service{service["pk"]}')])
-    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
+    keyboard.append([bot_constants.back_to_new_appt_button])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
@@ -278,14 +251,14 @@ def choose_date(update: Update, context: CallbackContext):
     try:
         dates = response.json()['data']
     except requests.HTTPError:
-        update.effective_chat.send_message(bot_strings.db_error_message)
+        update.effective_chat.send_message(bot_constants.db_error_message)
         return main_menu(update, context)
 
-    message_text = bot_strings.date_menu
+    message_text = bot_constants.date_menu
     keyboard = []
     for date in dates:
         keyboard.append([InlineKeyboardButton(date['name'], callback_data=f'service{date["pk"]}')])
-    keyboard.append([InlineKeyboardButton(bot_strings.back_to_new_appointment_button, callback_data='new_appointment')])
+    keyboard.append([bot_constants.back_to_new_appt_button])
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
@@ -295,12 +268,11 @@ def choose_date(update: Update, context: CallbackContext):
 def get_users_phone(update, context):
     query = update.callback_query
     query.answer()
-    message_text = bot_strings.choose_service_menu
-    keyboard = [[
-        InlineKeyboardButton(str('Предоставить номер телефона'), request_contact=True),
-    ], [
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main'),
-    ]]
+    message_text = bot_constants.choose_service_menu
+    keyboard = [
+        [InlineKeyboardButton('Предоставить номер телефона', request_contact=True)],
+        [bot_constants.back_to_main_button],
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
@@ -314,14 +286,12 @@ def get_users_phone(update, context):
 def registration(update, context):
     query = update.callback_query
     query.answer()
-    message_text = bot_strings.registration
-    keyboard = [[
-        InlineKeyboardButton(bot_strings.policy, callback_data='policy'),
-    ], [
-        InlineKeyboardButton(bot_strings.policy_agree, callback_data='policy_agree')
-    ], [
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')
-    ]]
+    message_text = bot_constants.registration
+    keyboard = [
+        [InlineKeyboardButton(bot_constants.policy, callback_data='policy')],
+        [InlineKeyboardButton(bot_constants.policy_agree, callback_data='policy_agree')],
+        [bot_constants.back_to_main_button],
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
@@ -345,8 +315,8 @@ def send_file_policy(update, context):
 def appointment_is_confirmed(update, context):
     query = update.callback_query
     query.answer()
-    context.bot.send_message(chat_id=update.effective_chat.id, text=bot_strings.confirmed)
-    # message_text = bot_strings.confirmed
+    context.bot.send_message(chat_id=update.effective_chat.id, text=bot_constants.confirmed)
+    # message_text = bot_constants.confirmed
     # update.effective_chat.send_message(message_text)
     # query.message.delete()
 
@@ -355,11 +325,10 @@ def confirm_appointment(update, context):
     query = update.callback_query
     query.answer()
     message_text = "Ваша запись:\n[дата]\n[услуга]\n[мастер]\n[салон]"
-    keyboard = [[
-        InlineKeyboardButton(bot_strings.confirm, callback_data='confirm'),
-    ], [
-        InlineKeyboardButton(bot_strings.back_button, callback_data='back_to_main')
-    ]]
+    keyboard = [
+        [InlineKeyboardButton(bot_constants.confirm, callback_data='confirm')], 
+        [bot_constants.back_to_main_button],
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
