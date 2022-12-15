@@ -109,17 +109,14 @@ def show_customer(request):
     return Response(format_json_response(serialize_customer(customer)))
 
 
-
 @api_view(['GET'])
 def available_appointments_for_salon(request, salon_id):
     query = request.GET.dict()
-    default_days = 14
+    default_days = 28
     n_days = int(query['n_days']) if 'n_days' in query else default_days
     salon = get_object_or_404(Salon, pk=salon_id)
-    hours_by_provider = salon.get_available_appointments_by_provider(
-        n_days,
-        query['provider_id'] if 'provider_id' in query and query['provider_id'] else None
-    )
+    selected_provider = query['provider_id'] if 'provider_id' in query and query['provider_id'] else None
+    hours_by_provider = salon.get_available_appointments_by_provider(n_days, selected_provider)
     result = {}
     for provider, hours in hours_by_provider.items():
         result.update({str(provider): hours})
