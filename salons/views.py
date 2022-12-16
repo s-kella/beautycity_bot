@@ -67,9 +67,15 @@ def all_salons(request):
     results = []
     for salon, distance in salon_distances.items():
         results.append({
-            **model_to_dict(salon),
+            'pk': salon.pk,
+            'name': salon.name,
+            'address': salon.address,
             'distance': distance
         })
+
+    if not results:
+        return queryset_as_json_response(salons, ['name', 'city', 'address', 'time_open', 'time_close'])
+
     response = format_json_response(results)
     return Response(response)
 

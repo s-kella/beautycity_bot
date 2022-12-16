@@ -54,13 +54,14 @@ class NearestQuerySet(models.QuerySet):
             degree_diff=(F('degree_diff_lat') + F('degree_diff_lon')),
         )
 
-    def nearest(self, user_lat: float, user_lon: float, max_dist_km=25, max_results=5) -> dict:
+    # TODO lower limits
+    def nearest(self, user_lat: float, user_lon: float, max_dist_km=10000, max_results=5) -> dict:
         """
         Query salons by distance from user.
         @return: dict in the format {salon, distance_in_km}
         """
         nearish_salons = (self.with_degree_diff_from_user(user_lat, user_lon)
-                          .filter(degree_diff__lte=1.5))
+                          .filter(degree_diff__lte=100))
         nearest_salons = []
         for salon in nearish_salons:
             distance = salon.get_distance_from_user(user_lat, user_lon)

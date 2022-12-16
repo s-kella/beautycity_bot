@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 
 import more_itertools
 import requests
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
@@ -24,7 +24,7 @@ back_to_week_button = InlineKeyboardButton(bot_strings.back_to_week, callback_da
 
 def update_request_query_params(query, context: CallbackContext):
     selection = query.data
-    if 'choose_' in selection:
+    if 'choose_' in selection or 'all_' in selection:
         return
 
     context.chat_data.update(json.loads(selection))
@@ -66,13 +66,45 @@ def new_appointment(update: Update, context: CallbackContext):
     query.message.delete()
 
 
-def choose_salon(update: Update, context: CallbackContext):
+def salon_all_or_nearest(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
+    keyboard = [
+        [InlineKeyboardButton(bot_strings.all_salons, callback_data='all_salons')],
+        [InlineKeyboardButton(bot_strings.nearest_salons, callback_data='nearest_salons')],
+    ]
+    query.edit_message_text(bot_strings.salon_all_or_nearest, reply_markup=InlineKeyboardMarkup(keyboard))
+    return ConversationState.ALL_OR_NEAREST.value
 
-    update_request_query_params(query, context)
+
+def request_location(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+    query.edit_message_reply_markup()
+    keyboard = [
+        [KeyboardButton(bot_strings.send_location, request_location=True)],
+        [KeyboardButton(bot_strings.decline_location)]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    update.effective_chat.send_message(bot_strings.request_location, reply_markup=reply_markup)
+    return ConversationState.ALL_OR_NEAREST.value
+
+
+def process_location(update: Update, context: CallbackContext):
+    location = update.message.location
+    context.chat_data['lat'] = location.latitude
+    context.chat_data['lon'] = location.longitude
+    return choose_salon(update, context)
+
+
+def choose_salon(update: Update, context: CallbackContext):
+    query = update.callback_query
+    if query:
+        query.answer()
+        update_request_query_params(query, context)
+
     url = f'http://127.0.0.1:8000/salons'
-    params = {k: v for k, v in context.chat_data.items() if k in ['service_id', 'provider_id']}
+    params = {k: v for k, v in context.chat_data.items() if k in ['service_id', 'provider_id', 'lat', 'lon']}
     try:
         response = requests.get(url, params=params)
         response.raise_for_status()
@@ -84,7 +116,10 @@ def choose_salon(update: Update, context: CallbackContext):
     message_text = bot_strings.choose_salon_menu
     keyboard = []
     for salon in all_salons:
-        salon_info = f"{salon['name']}, {salon['address']}"
+        if 'distance' in salon:
+            salon_info = f"{salon['name']}, {salon['distance']} км"
+        else:
+            salon_info = f"{salon['name']}, {salon['address']}"
         callback_data = {'salon_id': salon['pk'],
                          'salon_info': salon_info}
         keyboard.append([
@@ -94,8 +129,10 @@ def choose_salon(update: Update, context: CallbackContext):
     keyboard.extend([[base.back_to_new_appt_button], [base.back_to_main_button]])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
-    query.message.delete()
+    if query:
+        query.edit_message_text(message_text, reply_markup=reply_markup)
+    else:
+        update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     return ConversationState.SALON.value
 
 
@@ -296,7 +333,13 @@ by_provider_conv = ConversationHandler(
     ],
     states={
         ConversationState.PROVIDER.value: [CallbackQueryHandler(choose_service, pattern=provider_regex)],
-        ConversationState.SERVICE.value: [CallbackQueryHandler(choose_salon, pattern=service_regex)],
+        ConversationState.SERVICE.value: [CallbackQueryHandler(salon_all_or_nearest, pattern=service_regex)],
+        ConversationState.ALL_OR_NEAREST.value: [
+            CallbackQueryHandler(request_location, pattern='nearest_salons'),
+            CallbackQueryHandler(choose_salon, pattern='all_salons'),
+            MessageHandler(Filters.location, process_location),
+            MessageHandler(Filters.text, choose_salon),
+        ],
         ConversationState.SALON.value: [CallbackQueryHandler(choose_week, pattern=salon_regex)],
         ConversationState.DATETIME.value: [
             CallbackQueryHandler(choose_date, pattern=r'^week\d$'),
@@ -315,9 +358,15 @@ by_provider_conv = ConversationHandler(
 
 by_salon_conv = ConversationHandler(
     entry_points=[
-        CallbackQueryHandler(choose_salon, pattern=r'^choose_salon$'),
+        CallbackQueryHandler(salon_all_or_nearest, pattern=r'^choose_salon$'),
     ],
     states={
+        ConversationState.ALL_OR_NEAREST.value: [
+                    CallbackQueryHandler(request_location, pattern='nearest_salons'),
+                    CallbackQueryHandler(choose_salon, pattern='all_salons'),
+                    MessageHandler(Filters.location, process_location),
+                    MessageHandler(Filters.text, choose_salon),
+                ],
         ConversationState.SALON.value: [CallbackQueryHandler(choose_service, pattern=salon_regex)],
         ConversationState.SERVICE.value: [CallbackQueryHandler(choose_provider, pattern=service_regex)],
         ConversationState.PROVIDER.value: [CallbackQueryHandler(choose_week, pattern=provider_regex)],
@@ -341,7 +390,13 @@ by_service_conv = ConversationHandler(
         CallbackQueryHandler(choose_service, pattern=r'^choose_service$'),
     ],
     states={
-        ConversationState.SERVICE.value: [CallbackQueryHandler(choose_salon, pattern=service_regex)],
+        ConversationState.SERVICE.value: [CallbackQueryHandler(salon_all_or_nearest, pattern=service_regex)],
+        ConversationState.ALL_OR_NEAREST.value: [
+                    CallbackQueryHandler(request_location, pattern='nearest_salons'),
+                    CallbackQueryHandler(choose_salon, pattern='all_salons'),
+                    MessageHandler(Filters.location, process_location),
+                    MessageHandler(Filters.text, choose_salon),
+                ],
         ConversationState.SALON.value: [CallbackQueryHandler(choose_provider, pattern=salon_regex)],
         ConversationState.PROVIDER.value: [CallbackQueryHandler(choose_week, pattern=provider_regex)],
         ConversationState.DATETIME.value: [
