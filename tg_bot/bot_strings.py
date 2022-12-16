@@ -7,14 +7,14 @@ new_appointment_msg = 'Новая запись'
 
 # New appointment
 choose_salon_menu = 'Меню выбора по салону'
+nearest_salon = 'Ближайшие'
 choose_provider_menu = 'Меню выбора по мастеру'
 choose_service_menu = 'Меню выбора по услуге'
 week_menu = ('У нас есть расписание вашего мастера на следующие 4 недели. '
              'На какую неделю вы хотели бы записаться?')
 date_menu = 'На выбранной неделе ваш мастер доступен в следующие дни:'
-nearest_salon = 'Ближайший салон'
-confirm_appt = 'Подтвердить запись'
-appt_confirmed_msg = 'Ваша запись подтверждена'
+hour_menu = 'Выберите удобное время:'
+appt_confirmed_msg = 'Ваша запись подтверждена!'
 
 
 # Registration
@@ -50,6 +50,8 @@ next_week = 'Следующая неделя'
 week_after_2 = 'Через 2 недели'
 week_after_3 = 'Через 3 недели'
 back_to_week = 'Назад к выбору недели'
+back_to_date = 'Назад к выбору даты'
+
 
 # Errors
 db_error_message = 'При выполнении запроса произошла ошибка. Пожалуйста, повторите операцию позже.'
