@@ -82,7 +82,7 @@ def complete_registration(update: Update, context: CallbackContext):
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
         update.effective_chat.send_message(bot_strings.db_error_message)
-        return base.main_menu(update, context)
+        return
     message_text = bot_strings.registration_successful
     keyboard = [[base.main_menu_button]]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -111,6 +111,7 @@ def reconfirm_name(update: Update, context: CallbackContext):
 
 
 registration_conv = ConversationHandler(
+    allow_reentry=True,
     entry_points=[
         CallbackQueryHandler(request_phone, pattern=r'^policy_agree$'),
     ],
