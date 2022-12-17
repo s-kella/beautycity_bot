@@ -4,7 +4,9 @@ from urllib.parse import urljoin
 
 import more_itertools
 import requests
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update
+from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
+                      KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove,
+                      Update)
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
@@ -28,17 +30,6 @@ def update_request_query_params(query, context: CallbackContext):
         return
 
     context.chat_data.update(json.loads(selection))
-
-    print(context.chat_data)
-
-    # if 'provider' in selection:
-    #     context.chat_data['provider_id'] = selection.replace('provider', '')
-    # if 'service' in selection:
-    #     context.chat_data['service_id'] = selection.replace('service', '')
-    # if 'salon' in selection:
-    #     context.chat_data['salon_id'] = selection.replace('salon', '')
-    # if 'lat' in selection:
-    #     context.chat_data.update(selection)
 
 
 def clear_appointment_filters(context: CallbackContext):
@@ -64,6 +55,7 @@ def new_appointment(update: Update, context: CallbackContext):
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     query.message.delete()
+    return ConversationHandler.END
 
 
 def salon_all_or_nearest(update: Update, context: CallbackContext):
@@ -94,6 +86,7 @@ def process_location(update: Update, context: CallbackContext):
     location = update.message.location
     context.chat_data['lat'] = location.latitude
     context.chat_data['lon'] = location.longitude
+    update.effective_chat.send_message(bot_strings.thanks, reply_markup=ReplyKeyboardRemove())
     return choose_salon(update, context)
 
 
@@ -328,6 +321,7 @@ salon_regex = r'^{"salon_id": .*"}$'
 service_regex = r'^{"service_id": .*"}$'
 
 by_provider_conv = ConversationHandler(
+    allow_reentry=True,
     entry_points=[
         CallbackQueryHandler(choose_provider, pattern=r'^choose_provider$'),
     ],
@@ -357,6 +351,7 @@ by_provider_conv = ConversationHandler(
 )
 
 by_salon_conv = ConversationHandler(
+    allow_reentry=True,
     entry_points=[
         CallbackQueryHandler(salon_all_or_nearest, pattern=r'^choose_salon$'),
     ],
@@ -386,6 +381,7 @@ by_salon_conv = ConversationHandler(
 )
 
 by_service_conv = ConversationHandler(
+    allow_reentry=True,
     entry_points=[
         CallbackQueryHandler(choose_service, pattern=r'^choose_service$'),
     ],

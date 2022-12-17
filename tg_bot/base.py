@@ -18,6 +18,7 @@ class ConversationState(IntEnum):
     REQUESTED_PHONE = auto()
     SHOWED_NAME = auto()
     REQUESTED_NAME = auto()
+    NEW_APPT = auto()
     ALL_OR_NEAREST = auto()
     SALON = auto()
     PROVIDER = auto()

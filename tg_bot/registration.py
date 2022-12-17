@@ -2,7 +2,9 @@ import logging
 from urllib.parse import urljoin
 
 import requests
-from telegram import (InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update)
+from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
+                      KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove,
+                      Update)
 from telegram.ext import (
     CallbackContext,
     CallbackQueryHandler,
@@ -44,6 +46,7 @@ def request_phone(update: Update, context: CallbackContext):
 
 def show_name(update: Update, context: CallbackContext):
     context.chat_data['phone'] = update.message.contact.phone_number
+    update.effective_chat.send_message(bot_strings.thanks, reply_markup=ReplyKeyboardRemove())
 
     full_name = update.effective_user.full_name
     message_text = bot_strings.confirm_name_msg.format(full_name)
