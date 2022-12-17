@@ -1,4 +1,5 @@
 # beautycity
+Чат-бот для записи в салоны красоты через Telegram.
 
 ## Как установить
 
@@ -16,116 +17,125 @@
    TG_BOT_TOKEN=
    ```
    Создайте телеграм-бота с помощью BotFather и вставьте токен, который он вам пришлёт.
-#### Paзработчикам
+#### Paзработчикам и тестировщикам
 5. Загрузите тестовые объекты в БД:
    ```commandline
    python manage.py migrate && python manage.py loaddata data/test_data.json
    ```
-6. Запустите development server
-   ```commandline
-   python manage.py runserver
+#### Всем
+6. Разверните сервер для разработки или производственный веб-сервер согласно его документации.
+Для производственного сервера понадобятся переменные в .env:
+   ```
+   DB_USER=
+   DB_PASS=
+   DB_PORT=
+   DJANGO_SECRET_KEY=
+   PROD=1
    ```
 
+## Как пользоваться: салонам
+1. Создайте аккаунт для админ-сайта Django 
+[(документация)](https://docs.djangoproject.com/en/4.1/topics/auth/default/#managing-users-in-the-admin).
+2. Информацию о салонах, мастерах и их расписаниях, а также доступных услугах можно занести в админке.
+3. Отправьте клиентам ссылку на вашего бота.
+4. Новые записи также будут появляться в админке.
 
-## API endpoints
 
-Пример запроса для development server:
-```python
-# Getting available appointments for provider 1 at salon 1
-salon_id = 1
-url = f'http://127.0.0.1:8000/salon/{salon_id}/available_appointments'
-params = {
-   'provider_id': 1
-}
-response = requests.get(url, params)
-```
 
-### Choosing a salon, service, provider, date, and time slot for appointment: 
+## Разработчикам: точки доступа API
 
-#### Show salons
+### Выбор салона, мастера, услуги: 
+
+#### Доступные салоны
 ```
 type: GET
-path: /salons
+path: /salons/
 
 params for nearest salons:
    lat: float
    lon: float
    
 optional params for filtering:
-   provider_id: int
-   service_id: int
+   provider_id: int | str
+   service_id: int | str
 ```
 
-#### Show providers
+#### Доступные мастера
 ```
 type: GET
-path: /providers
+path: /providers/
 
 optional params for filtering:
-   salon_id: int
-   service_id: int
+   salon_id: int | str
+   service_id: int | str
 ```
 
-#### Show services
+#### Доступные услуги
 ```
 type: GET
-path: /services
+path: /services/
 
 optional params for filtering:
-   salon_id: int
-   provider_id: int
+   salon_id: int | str
+   provider_id: int | str
 ```
 
-#### Show available appointments at a salon
+#### Доступные записи в выбранном салоне
 ```
 type: GET
-path: /salon/<salon_id:int>/available_appointments
+path: /salon/<salon_id:int>/available_appointments/
 
 optional params: 
-   provider_id: int
+   provider_id: int | str
    n_days: int    the default lookup window for appointments is 14 days ahead, 
                   customize it with this param
 ```
 
-### Registering a customer
+### Регистрация
 ```
 type: POST
-path: /register_customer
+path: /register_customer/
 post data:
    name: str
-   telegram_id: int|str
+   telegram_id: int | str
    phone_numer: str
 ```
 
-### Making an appointment
+### Создание записи
 ```
 type: POST
-path: /make_appointment
+path: /make_appointment/
 post data:
-   hour: int
-   date: str YYYY:MM:DD
-   customer_id: int
-   provider_id: int
-   service_id: int
+   hour: int | str
+   date: str "YYYY:MM:DD"
+   customer_id: int | str
+   provider_id: int | str
+   service_id: int | str
 ```
-### Showing an existing customer
+### Информация о клиенте
 ```
 type: GET
 path: /customer/
 query params:
    telegram_id: int | str - find a registered customer by telegram id
 ```
-### Past and future appointments for a customer
+### Прошлые и текущие записи клиента
 ```
-/customer/<int:customer_id>/past
-/customer/<int:customer_id>/future
+/customer/<int:customer_id>/past/
+/customer/<int:customer_id>/future/
 ```
 
-
-## Как пользоваться
-
-### Салонам
-
-### Клиентам
+### Пример запроса:
+```python
+# Getting available appointments for provider 1 at salon 1
+salon_id = 1
+url = urljoin(BASE_URL, f'/salon/{salon_id}/available_appointments/')
+params = {
+   'provider_id': 1
+}
+response = requests.get(url, params)
+```
 
 ## Цель проекта
+
+Код написан в образовательных целях на онлайн-курсе для веб-разработчиков [dvmn.org](https://dvmn.org/).
