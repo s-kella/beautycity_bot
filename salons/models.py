@@ -207,7 +207,7 @@ class Service(models.Model):
 
 
 class Customer(models.Model):
-    telegram_id = models.IntegerField()
+    telegram_id = models.BigIntegerField()
     first_name = models.CharField("имя", max_length=50)
     last_name = models.CharField("фамилия", max_length=50)
     phone_number = PhoneNumberField("телефон")
