@@ -56,8 +56,7 @@ def set_customer_id(update: Update, context: CallbackContext):
         else:
             raise
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return main_menu(update, context)
+        return db_error(update, context)
 
 
 def start(update, context):
@@ -81,3 +80,8 @@ def main_menu(update: Update, context: CallbackContext):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+
+
+def db_error(update: Update, context: CallbackContext):
+    update.effective_chat.send_message(bot_strings.db_error_message)
+    return

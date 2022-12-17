@@ -81,8 +81,8 @@ def complete_registration(update: Update, context: CallbackContext):
         response = requests.post(url, data=customer)
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return
+        return base.db_error(update, context)
+
     message_text = bot_strings.registration_successful
     keyboard = [[base.main_menu_button]]
     reply_markup = InlineKeyboardMarkup(keyboard)

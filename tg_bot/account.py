@@ -52,8 +52,7 @@ def future_appointments(update: Update, context: CallbackContext):
         response = requests.get(url)
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return base.main_menu(update, context)
+        return base.db_error(update, context)
 
     message_text = format_appointments_text(response.json()['data'])
 
@@ -74,8 +73,7 @@ def past_appointments(update: Update, context: CallbackContext):
         response = requests.get(url)
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return base.main_menu(update, context)
+        return base.db_error(update, context)
 
     message_text = format_appointments_text(response.json()['data'], past=True)
     keyboard = [

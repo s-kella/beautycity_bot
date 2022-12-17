@@ -104,8 +104,7 @@ def choose_salon(update: Update, context: CallbackContext):
         response = requests.get(url, params=params)
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return base.main_menu(update, context)
+        return base.db_error(update, context)
 
     all_salons = response.json()['data']
     message_text = bot_strings.choose_salon_menu
@@ -144,8 +143,7 @@ def choose_provider(update: Update, context: CallbackContext):
         response = requests.get(url, params=params)
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return base.main_menu(update, context)
+        return base.db_error(update, context)
 
     providers = response.json()['data']
     message_text = bot_strings.choose_provider_menu
@@ -175,8 +173,7 @@ def choose_service(update: Update, context: CallbackContext):
         response = requests.get(url, params=params)
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return base.main_menu(update, context)
+        return base.db_error(update, context)
 
     services = response.json()['data']
     message_text = bot_strings.choose_service_menu
@@ -207,8 +204,7 @@ def choose_week(update: Update, context: CallbackContext):
         response = requests.get(url, params)
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return base.main_menu(update, context)
+        return base.db_error(update, context)
 
     appts = list(response.json()['data'].values())[0]
     appts_per_week = len(appts) // 4
@@ -309,8 +305,7 @@ def create_appointment(update: Update, context: CallbackContext):
         response = requests.post(url, data=appt)
         response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
-        update.effective_chat.send_message(bot_strings.db_error_message)
-        return base.main_menu(update, context)
+        return base.db_error(update, context)
 
     query.edit_message_reply_markup()
     keyboard = [[InlineKeyboardButton(bot_strings.main_menu, callback_data='back_to_main')]]
