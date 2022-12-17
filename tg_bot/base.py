@@ -31,7 +31,6 @@ BASE_URL = 'http://127.0.0.1:8000/'
 
 
 new_appt_button = InlineKeyboardButton(bot_strings.new_appt, callback_data='new_appointment')
-back_to_new_appt_button = InlineKeyboardButton(bot_strings.back_to_new_appt, callback_data='new_appointment')
 account_menu_button = InlineKeyboardButton(bot_strings.account_menu, callback_data='account')
 main_menu_button = InlineKeyboardButton(bot_strings.main_menu, callback_data='back_to_main')
 back_to_main_button = InlineKeyboardButton(bot_strings.back_to_main, callback_data='back_to_main')
@@ -71,6 +70,7 @@ def main_menu(update: Update, context: CallbackContext):
     query = update.callback_query
     if query:
         query.answer()
+        query.message.delete()
 
     message_text = bot_strings.main_menu_msg
 
@@ -80,12 +80,4 @@ def main_menu(update: Update, context: CallbackContext):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    if query:
-        query.message.edit_text(message_text, reply_markup=reply_markup)
-    else:
-        update.effective_chat.send_message(message_text, reply_markup=reply_markup)
-
-
-def help_message(update: Update, context: CallbackContext):
-    """Send help text"""
-    update.effective_chat.send_message('TEXT: HELP')
+    update.effective_chat.send_message(message_text, reply_markup=reply_markup)

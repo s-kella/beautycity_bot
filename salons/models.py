@@ -38,7 +38,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
     c = 2 * asin(sqrt(a))
     km = earth_radius * c
-    return round(km, 3)
+    return round(km, 2)
 
 
 class SalonManager(models.Manager):
@@ -87,7 +87,7 @@ class Salon(models.Model):
     objects = SalonManager.from_queryset(NearestQuerySet)()
 
     def __str__(self):
-        return f'Салон {self.name}, {self.address}'
+        return f'{self.name}, {self.address}'
 
     def get_available_services(self):
         services = set()

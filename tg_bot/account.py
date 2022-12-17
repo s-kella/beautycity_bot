@@ -12,13 +12,13 @@ from tg_bot.base import BASE_URL
 logger = logging.getLogger(__name__)
 
 
-def format_appointments_text(appointments, past: bool = True):
+def format_appointments_text(appointments, past: bool = False):
     if not appointments:
         return bot_strings.no_appointments
-    message_text = bot_strings.past_appointments if past else bot_strings.future_appointments
+    message_text = bot_strings.past_appointments_msg if past else bot_strings.future_appointments_msg
     for appointment in appointments:
         message_text += (f"\n\n{appointment['datetime'].replace('T', ' ')}: {appointment['service']} "
-                         f"у {appointment['provider']} в {appointment['salon']}.")
+                         f"у мастера {appointment['provider']} в салоне {appointment['salon']}.")
     return message_text
 
 
@@ -33,8 +33,8 @@ def account_menu(update: Update, context: CallbackContext):
 
     message_text = bot_strings.account_menu_msg
     keyboard = [
-        [InlineKeyboardButton(bot_strings.future_appointments, callback_data='future_appts')],
-        [InlineKeyboardButton(bot_strings.past_appointments, callback_data='past_appts')],
+        [InlineKeyboardButton(bot_strings.future_appointments_label, callback_data='future_appts')],
+        [InlineKeyboardButton(bot_strings.past_appointments_label, callback_data='past_appts')],
         [base.back_to_main_button],
     ]
 
@@ -61,8 +61,7 @@ def future_appointments(update: Update, context: CallbackContext):
         [base.back_to_main_button],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
-    query.message.delete()
+    query.edit_message_text(message_text, reply_markup=reply_markup)
 
 
 def past_appointments(update: Update, context: CallbackContext):
@@ -78,10 +77,9 @@ def past_appointments(update: Update, context: CallbackContext):
         update.effective_chat.send_message(bot_strings.db_error_message)
         return base.main_menu(update, context)
 
-    message_text = format_appointments_text(response.json()['data'])
+    message_text = format_appointments_text(response.json()['data'], past=True)
     keyboard = [
         [base.back_to_main_button],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
-    query.message.delete()
+    query.edit_message_text(message_text, reply_markup=reply_markup)

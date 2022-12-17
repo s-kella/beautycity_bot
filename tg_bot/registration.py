@@ -14,7 +14,7 @@ from telegram.ext import (
     MessageHandler,
 )
 
-from tg_bot import base, bot_strings
+from tg_bot import appointments, base, bot_strings
 from tg_bot.base import ConversationState
 
 logger = logging.getLogger(__name__)
@@ -38,10 +38,17 @@ def request_phone(update: Update, context: CallbackContext):
     query.answer()
     query.message.edit_reply_markup()
     message_text = bot_strings.request_phone_msg
-    reply_markup = ReplyKeyboardMarkup([[KeyboardButton(str('Предоставить номер телефона'), request_contact=True)]],
-                                       resize_keyboard=True, one_time_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(
+        [[KeyboardButton(bot_strings.share_contact, request_contact=True)],
+         [KeyboardButton(bot_strings.decline_contact)]],
+        resize_keyboard=True)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
     return ConversationState.REQUESTED_PHONE.value
+
+
+def process_phone_decline(update: Update, context: CallbackContext):
+    update.effective_chat.send_message(bot_strings.declined_contact, reply_markup=ReplyKeyboardRemove())
+    return appointments.new_appointment(update, context)
 
 
 def show_name(update: Update, context: CallbackContext):
@@ -56,6 +63,7 @@ def show_name(update: Update, context: CallbackContext):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
+
     return ConversationState.SHOWED_NAME.value
 
 
@@ -65,7 +73,7 @@ def complete_registration(update: Update, context: CallbackContext):
 
     url = urljoin(base.BASE_URL, 'register_customer/')
     customer = {
-        'name': update.effective_user.full_name,
+        'name': context.chat_data.get('customer_name') or update.effective_user.full_name,
         'telegram_id': update.effective_user.id,
         'phone_number': context.chat_data['phone'],
     }
@@ -91,6 +99,7 @@ def change_name(update: Update, context: CallbackContext):
 
 def reconfirm_name(update: Update, context: CallbackContext):
     full_name = update.message.text
+    context.chat_data['customer_name'] = full_name
     message_text = bot_strings.confirm_name_msg.format(full_name)
     keyboard = [
         [InlineKeyboardButton(bot_strings.confirm, callback_data='confirm_name')],
@@ -106,7 +115,10 @@ registration_conv = ConversationHandler(
         CallbackQueryHandler(request_phone, pattern=r'^policy_agree$'),
     ],
     states={
-        ConversationState.REQUESTED_PHONE.value: [MessageHandler(Filters.contact, show_name)],
+        ConversationState.REQUESTED_PHONE.value: [
+            MessageHandler(Filters.contact, show_name),
+            MessageHandler(Filters.text, process_phone_decline)
+        ],
         ConversationState.SHOWED_NAME.value: [
             CallbackQueryHandler(change_name, pattern=r'^change_name$'),
         ],

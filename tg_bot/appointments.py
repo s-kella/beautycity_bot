@@ -7,14 +7,9 @@ import requests
 from telegram import (InlineKeyboardButton, InlineKeyboardMarkup,
                       KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove,
                       Update)
-from telegram.ext import (
-    CallbackContext,
-    CallbackQueryHandler,
-    ConversationHandler,
-    CommandHandler,
-    Filters,
-    MessageHandler,
-)
+from telegram.ext import (CallbackContext, CallbackQueryHandler, 
+                          ConversationHandler, CommandHandler,
+                          Filters, MessageHandler)
 
 from tg_bot import base, bot_strings
 from tg_bot.base import BASE_URL, ConversationState
@@ -22,13 +17,13 @@ from tg_bot.base import BASE_URL, ConversationState
 logger = logging.getLogger(__name__)
 
 back_to_week_button = InlineKeyboardButton(bot_strings.back_to_week, callback_data='choose_week')
+back_to_new_appt_button = InlineKeyboardButton(bot_strings.back_to_new_appt, callback_data='new_appointment')
 
 
 def update_request_query_params(query, context: CallbackContext):
     selection = query.data
     if 'choose_' in selection or 'all_' in selection:
         return
-
     context.chat_data.update(json.loads(selection))
 
 
@@ -40,7 +35,9 @@ def clear_appointment_filters(context: CallbackContext):
 
 def new_appointment(update: Update, context: CallbackContext):
     query = update.callback_query
-    query.answer()
+    if query:
+        query.answer()
+        query.message.delete()
 
     clear_appointment_filters(context)
 
@@ -54,13 +51,13 @@ def new_appointment(update: Update, context: CallbackContext):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     update.effective_chat.send_message(message_text, reply_markup=reply_markup)
-    query.message.delete()
     return ConversationHandler.END
 
 
 def salon_all_or_nearest(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
+    update_request_query_params(query, context)
     keyboard = [
         [InlineKeyboardButton(bot_strings.all_salons, callback_data='all_salons')],
         [InlineKeyboardButton(bot_strings.nearest_salons, callback_data='nearest_salons')],
@@ -72,13 +69,13 @@ def salon_all_or_nearest(update: Update, context: CallbackContext):
 def request_location(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
-    query.edit_message_reply_markup()
     keyboard = [
         [KeyboardButton(bot_strings.send_location, request_location=True)],
         [KeyboardButton(bot_strings.decline_location)]
     ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     update.effective_chat.send_message(bot_strings.request_location, reply_markup=reply_markup)
+    query.message.delete()
     return ConversationState.ALL_OR_NEAREST.value
 
 
@@ -87,6 +84,11 @@ def process_location(update: Update, context: CallbackContext):
     context.chat_data['lat'] = location.latitude
     context.chat_data['lon'] = location.longitude
     update.effective_chat.send_message(bot_strings.thanks, reply_markup=ReplyKeyboardRemove())
+    return choose_salon(update, context)
+
+
+def process_refused_location(update: Update, context: CallbackContext):
+    update.effective_chat.send_message(bot_strings.ok, reply_markup=ReplyKeyboardRemove())
     return choose_salon(update, context)
 
 
@@ -109,17 +111,18 @@ def choose_salon(update: Update, context: CallbackContext):
     message_text = bot_strings.choose_salon_menu
     keyboard = []
     for salon in all_salons:
+        salon_info = f"{salon['name']}, {salon['address']}"
         if 'distance' in salon:
-            salon_info = f"{salon['name']}, {salon['distance']} км"
+            salon_display = f"{salon['name']}, {salon['distance']} км"
         else:
-            salon_info = f"{salon['name']}, {salon['address']}"
+            salon_display = salon_info
         callback_data = {'salon_id': salon['pk'],
                          'salon_info': salon_info}
         keyboard.append([
-            InlineKeyboardButton(salon_info,
+            InlineKeyboardButton(salon_display,
                                  callback_data=json.dumps(callback_data))
         ])
-    keyboard.extend([[base.back_to_new_appt_button], [base.back_to_main_button]])
+    keyboard.extend([[back_to_new_appt_button], [base.back_to_main_button]])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     if query:
@@ -155,10 +158,9 @@ def choose_provider(update: Update, context: CallbackContext):
             InlineKeyboardButton(provider_full_name,
                                  callback_data=json.dumps(callback_data))
         ])
-    keyboard.extend([[base.back_to_new_appt_button], [base.back_to_main_button]])
+    keyboard.extend([[back_to_new_appt_button], [base.back_to_main_button]])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
-    query.message.delete()
+    query.edit_message_text(message_text, reply_markup=reply_markup)
     return ConversationState.PROVIDER.value
 
 
@@ -186,10 +188,9 @@ def choose_service(update: Update, context: CallbackContext):
             InlineKeyboardButton(service['name'],
                                  callback_data=json.dumps(callback_data))
         ])
-    keyboard.extend([[base.back_to_new_appt_button], [base.back_to_main_button]])
+    keyboard.extend([[back_to_new_appt_button], [base.back_to_main_button]])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.effective_chat.send_message(message_text, reply_markup=reply_markup)
-    query.message.delete()
+    query.edit_message_text(message_text, reply_markup=reply_markup)
     return ConversationState.SERVICE.value
 
 
@@ -218,7 +219,7 @@ def choose_week(update: Update, context: CallbackContext):
         [InlineKeyboardButton(bot_strings.next_week, callback_data='week1')],
         [InlineKeyboardButton(bot_strings.week_after_2, callback_data='week2')],
         [InlineKeyboardButton(bot_strings.week_after_3, callback_data='week3')],
-        [base.back_to_new_appt_button], [base.back_to_main_button]
+        [back_to_new_appt_button], [base.back_to_main_button]
     ]
     query.edit_message_text(bot_strings.week_menu, reply_markup=InlineKeyboardMarkup(keyboard))
     return ConversationState.DATETIME.value
@@ -236,11 +237,11 @@ def choose_date(update: Update, context: CallbackContext):
             [InlineKeyboardButton(button_label, callback_data=f"{appt['date']},week{selected_week}")]
         )
     keyboard.extend([
-        [back_to_week_button], [base.back_to_new_appt_button], [base.back_to_main_button]
+        [InlineKeyboardButton(bot_strings.back_to_week, callback_data='choose_week')],
+        [back_to_new_appt_button], [base.back_to_main_button]
     ])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    update.effective_chat.send_message(bot_strings.date_menu, reply_markup=reply_markup)
-    query.message.delete()
+    query.edit_message_text(bot_strings.date_menu, reply_markup=reply_markup)
     return ConversationState.DATETIME.value
 
 
@@ -256,7 +257,7 @@ def choose_hour(update: Update, context: CallbackContext):
         if len(keyboard[-1]) > 4:
             keyboard.append([])
     keyboard.extend([[InlineKeyboardButton(bot_strings.back_to_date, callback_data=f'week{selected_week}')],
-                     [base.back_to_new_appt_button], [base.back_to_main_button]])
+                     [back_to_new_appt_button], [base.back_to_main_button]])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     query.edit_message_text(bot_strings.hour_menu, reply_markup=reply_markup)
@@ -283,8 +284,8 @@ def confirm_appointment(update: Update, context: CallbackContext):
 
     keyboard = [
         [InlineKeyboardButton(bot_strings.confirm, callback_data='confirm_appt')],
-        [back_to_week_button],
-        [base.back_to_new_appt_button],
+        [InlineKeyboardButton(bot_strings.back_to_date, callback_data='choose_week')],
+        [back_to_new_appt_button],
         [base.back_to_main_button],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -310,9 +311,11 @@ def create_appointment(update: Update, context: CallbackContext):
         update.effective_chat.send_message(bot_strings.db_error_message)
         return base.main_menu(update, context)
 
-    update.effective_chat.send_message(bot_strings.appt_confirmed_msg)
-    appt_message = context.chat_data['appt_message_id']
-    update.effective_chat.pin_message(appt_message)
+    query.edit_message_reply_markup()
+    keyboard = [[InlineKeyboardButton(bot_strings.main_menu, callback_data='back_to_main')]]
+
+    update.effective_chat.send_message(bot_strings.appt_confirmed_msg, reply_markup=InlineKeyboardMarkup(keyboard))
+    update.effective_chat.pin_message(context.chat_data['appt_message_id'])
 
 
 coordinates_regex = r'^{"lat": \d*\.\d*, "lon": \d*\.\d*}$'
@@ -332,7 +335,7 @@ by_provider_conv = ConversationHandler(
             CallbackQueryHandler(request_location, pattern='nearest_salons'),
             CallbackQueryHandler(choose_salon, pattern='all_salons'),
             MessageHandler(Filters.location, process_location),
-            MessageHandler(Filters.text, choose_salon),
+            MessageHandler(Filters.text, process_refused_location),
         ],
         ConversationState.SALON.value: [CallbackQueryHandler(choose_week, pattern=salon_regex)],
         ConversationState.DATETIME.value: [
@@ -360,8 +363,8 @@ by_salon_conv = ConversationHandler(
                     CallbackQueryHandler(request_location, pattern='nearest_salons'),
                     CallbackQueryHandler(choose_salon, pattern='all_salons'),
                     MessageHandler(Filters.location, process_location),
-                    MessageHandler(Filters.text, choose_salon),
-                ],
+                    MessageHandler(Filters.text, process_refused_location),
+        ],
         ConversationState.SALON.value: [CallbackQueryHandler(choose_service, pattern=salon_regex)],
         ConversationState.SERVICE.value: [CallbackQueryHandler(choose_provider, pattern=service_regex)],
         ConversationState.PROVIDER.value: [CallbackQueryHandler(choose_week, pattern=provider_regex)],
@@ -391,8 +394,8 @@ by_service_conv = ConversationHandler(
                     CallbackQueryHandler(request_location, pattern='nearest_salons'),
                     CallbackQueryHandler(choose_salon, pattern='all_salons'),
                     MessageHandler(Filters.location, process_location),
-                    MessageHandler(Filters.text, choose_salon),
-                ],
+                    MessageHandler(Filters.text, process_refused_location),
+        ],
         ConversationState.SALON.value: [CallbackQueryHandler(choose_provider, pattern=salon_regex)],
         ConversationState.PROVIDER.value: [CallbackQueryHandler(choose_week, pattern=provider_regex)],
         ConversationState.DATETIME.value: [
