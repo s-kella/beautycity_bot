@@ -38,7 +38,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
     c = 2 * asin(sqrt(a))
     km = earth_radius * c
-    return round(km, 3)
+    return round(km, 2)
 
 
 class SalonManager(models.Manager):
@@ -54,13 +54,14 @@ class NearestQuerySet(models.QuerySet):
             degree_diff=(F('degree_diff_lat') + F('degree_diff_lon')),
         )
 
-    def nearest(self, user_lat: float, user_lon: float, max_dist_km=25, max_results=5) -> dict:
+    # TODO lower limits
+    def nearest(self, user_lat: float, user_lon: float, max_dist_km=10000, max_results=5) -> dict:
         """
         Query salons by distance from user.
         @return: dict in the format {salon, distance_in_km}
         """
         nearish_salons = (self.with_degree_diff_from_user(user_lat, user_lon)
-                          .filter(degree_diff__lte=1.5))
+                          .filter(degree_diff__lte=100))
         nearest_salons = []
         for salon in nearish_salons:
             distance = salon.get_distance_from_user(user_lat, user_lon)
@@ -86,7 +87,7 @@ class Salon(models.Model):
     objects = SalonManager.from_queryset(NearestQuerySet)()
 
     def __str__(self):
-        return f'Салон {self.name}, {self.address}'
+        return f'{self.name}, {self.address}'
 
     def get_available_services(self):
         services = set()
@@ -214,7 +215,8 @@ class Customer(models.Model):
     def __str__(self):
         return f'{self.first_name} {self.last_name}'
 
-    def get_past_appointments(self):
+    # TODO only last 6 months of appts
+    def get_past_appointments(self, window_months=6):
         return Appointment.objects.filter(customer=self, datetime__lt=timezone.now())
 
     def get_future_appointments(self):
