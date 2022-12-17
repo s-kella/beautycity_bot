@@ -98,7 +98,7 @@ def choose_salon(update: Update, context: CallbackContext):
         query.answer()
         update_request_query_params(query, context)
 
-    url = f'http://127.0.0.1:8000/salons'
+    url = urljoin(BASE_URL, 'salons/')
     params = {k: v for k, v in context.chat_data.items() if k in ['service_id', 'provider_id', 'lat', 'lon']}
     try:
         response = requests.get(url, params=params)
@@ -137,7 +137,7 @@ def choose_provider(update: Update, context: CallbackContext):
     query.answer()
 
     update_request_query_params(query, context)
-    url = f'http://127.0.0.1:8000/providers'
+    url = urljoin(BASE_URL, 'providers/')
     params = {k: v for k, v in context.chat_data.items() if k in ['service_id', 'salon_id']}
 
     try:
@@ -169,7 +169,7 @@ def choose_service(update: Update, context: CallbackContext):
     query.answer()
     update_request_query_params(query, context)
 
-    url = f'http://127.0.0.1:8000/services'
+    url = urljoin(BASE_URL, 'services/')
     params = {k: v for k, v in context.chat_data.items() if k in ['provider_id', 'salon_id']}
     try:
         response = requests.get(url, params=params)
@@ -200,11 +200,12 @@ def choose_week(update: Update, context: CallbackContext):
     update_request_query_params(query, context)
 
     salon_id = context.chat_data['salon_id']
-    url = f'http://127.0.0.1:8000/salon/{salon_id}/available_appointments/'
+    url = urljoin(BASE_URL, f'salon/{salon_id}/available_appointments/')
     params = {'provider_id': context.chat_data['provider_id']}
 
     try:
         response = requests.get(url, params)
+        response.raise_for_status()
     except (requests.HTTPError, requests.ConnectionError):
         update.effective_chat.send_message(bot_strings.db_error_message)
         return base.main_menu(update, context)
